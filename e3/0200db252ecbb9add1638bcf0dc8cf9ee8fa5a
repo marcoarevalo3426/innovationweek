@@ -1,0 +1,91 @@
+.dockerignore
+  s_1637736c36f889::t_981585e1781c5d 1-9
+.env.example
+  s_1637736c36f889::t_23516823478120 1-20
+Dockerfile
+  s_1637736c36f889::t_e3e754cf0a53a9 1-19
+deploy/debian/README.md
+  s_1637736c36f889::t_352583daabf8b2 1-196
+deploy/debian/innovation-week.service
+  s_1637736c36f889::t_c6a10732d48e12 1-18
+deploy/debian/nginx.conf
+  s_1637736c36f889::t_3b667500af48e6 1-19
+package-lock.json
+  s_1637736c36f889::t_37ce1f348c73f4 1-4066
+package.json
+  s_1637736c36f889::t_b59a81ba9b9b68 1-42
+playwright.config.js
+  s_1637736c36f889::t_5a07e25e4ef25b 1-6
+scripts/db-check.js
+  s_1637736c36f889::t_2990c87ccb551e 1-10
+scripts/db-migrate.js
+  s_1637736c36f889::t_4e18b9294686c4 1-9
+scripts/import-sqlite.js
+  s_1637736c36f889::t_545d8755d32574 1-10
+scripts/local-postgres.js
+  s_1637736c36f889::t_e95acd0c3ea08f 1-27
+scripts/test.js
+  s_1637736c36f889::t_442f0e6b3b7dbc 1-44
+server/auth-mode.js
+  s_1637736c36f889::t_becb75ce4de5a9 1-5
+server/db.js
+  s_1637736c36f889::t_4e0b9bb12c5799 1-58
+server/index.js
+  s_1637736c36f889::t_f4e9d6f1b9fed3 1-515
+server/migrate.js
+  s_1637736c36f889::t_986468d311dcaa 1-27
+server/migrations/001-postgresql.sql
+  s_1637736c36f889::t_3175c83697cf54 1-68
+server/pg-config.js
+  s_1637736c36f889::t_ddf6f077ff9be0 1-40
+server/seed.js
+  s_1637736c36f889::t_590c107c8e81b5 1-24
+server/sqlite-import.js
+  s_1637736c36f889::t_eaf9c7336e4671 1-103
+shared/event-state.js
+  s_1637736c36f889::t_7bcc7e913deb45 1-28
+src/App.jsx
+  s_1637736c36f889::t_f20ffda316a48f 1-96
+src/SubmissionControls.jsx
+  s_1637736c36f889::t_a7ab982445d1b4 1-21
+src/VotingHero.jsx
+  s_1637736c36f889::t_f857fe6c0cf822 1-56
+src/events.css
+  s_1637736c36f889::t_7806dbfcac5ad9 1-11
+src/main.jsx
+  s_1637736c36f889::t_b94cc50e0c58bd 1-6
+src/styles.css
+  s_1637736c36f889::t_c059ce515d23f3 1-21
+tests/api.test.js
+  s_1637736c36f889::t_8dd0259ff869d1 1-83
+tests/browser/teardown.js
+  s_1637736c36f889::t_e76600c022539b 1-2
+tests/browser/workflow.spec.js
+  s_1637736c36f889::t_75482e15118948 1-32
+tests/event-state.test.js
+  s_1637736c36f889::t_a02307113aadba 1-42
+tests/local-auth.test.js
+  s_1637736c36f889::t_cf8cf38f897c33 1-89
+tests/pg-helpers.js
+  s_1637736c36f889::t_97bd396118ab06 1-19
+tests/postgres.test.js
+  s_1637736c36f889::t_b8ca21073dce7c 1-82
+vite.config.js
+  s_1637736c36f889::t_b5d2f494daec4a 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e30200db252ecbb9add1638bcf0dc8cf9ee8fa5a",
+  "prompts": {},
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marcoarevalo3426@gmail.com>"
+    }
+  }
+}

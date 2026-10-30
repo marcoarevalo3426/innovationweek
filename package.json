@@ -1,0 +1,42 @@
+{
+  "name": "nep-innovation-week",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.14.0"
+  },
+  "scripts": {
+    "dev": "concurrently -k \"node --env-file-if-exists=.env server/index.js\" \"vite --host 127.0.0.1\"",
+    "build": "vite build",
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "test": "node --env-file-if-exists=.env scripts/test.js",
+    "seed:demo": "node --env-file-if-exists=.env server/seed.js",
+    "test:e2e": "npm run build && playwright test",
+    "db:local": "node --env-file-if-exists=.env scripts/local-postgres.js",
+    "db:migrate": "node --env-file-if-exists=.env scripts/db-migrate.js",
+    "db:import:sqlite": "node --env-file-if-exists=.env scripts/import-sqlite.js",
+    "db:check": "node --env-file-if-exists=.env scripts/db-check.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "lucide-react": "^0.468.0",
+    "multer": "^2.0.2",
+    "nodemailer": "^10.3.1",
+    "pg": "^8.23.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@vitejs/plugin-react": "^5.1.0",
+    "concurrently": "^9.2.1",
+    "embedded-postgres": "^16.15.0-beta.19",
+    "vite": "^7.1.12"
+  }
+}

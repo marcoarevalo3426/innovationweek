@@ -1,0 +1,18 @@
+[Unit]
+Description=NEP Innovation Week
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=innovation
+Group=innovation
+WorkingDirectory=/opt/innovation-week
+EnvironmentFile=/etc/innovation-week.env
+ExecStart=/usr/bin/node /opt/innovation-week/server/index.js
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

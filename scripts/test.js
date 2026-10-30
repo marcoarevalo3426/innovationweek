@@ -6,13 +6,14 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 
 let server;
+let serverStarted = false;
 let directory;
 let child;
 let finishing = false;
 async function finish(code) {
   if (finishing) return;
   finishing = true;
-  if (server) await server.stop();
+  if (serverStarted) await server.stop();
   if (directory) rmSync(directory,{recursive:true,force:true});
   process.exitCode = code;
 }
@@ -27,6 +28,7 @@ if (process.env.TEST_USE_LOCAL_POSTGRES !== 'true') {
   try {
     await server.initialise();
     await server.start();
+    serverStarted = true;
     await server.createDatabase('innovation_tests');
   } catch (error) {
     console.error('Cannot start isolated PostgreSQL:',error.message);

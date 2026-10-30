@@ -49,16 +49,20 @@ export async function importSQLite({ source, pool, targetDir, dryRun = false }) 
   const client = await pool.connect();
   const copied = [];
   let committed = false;
+  let commitAttempted = false;
   const counts = Object.fromEntries(Object.entries(rows).map(([table, values]) => [table, values.length]));
   try {
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(731901,1)');
     // The importer runs during downtime. Refuse all existing application rows,
     // including audit-only/local-admin activity and previously imported data.
-    for (const table of ['users','ideas','likes','votes','audit','challenges','sessions']) {
+    for (const table of ['users','ideas','likes','votes','audit','challenges','sessions','data_imports']) {
       const result = await client.query(`SELECT COUNT(*) AS n FROM ${table}`);
       if (Number(result.rows[0].n)) throw new Error(`Target is not empty (${table}). Import refused; no rows were replaced.`);
     }
+    const pristine = {id:1,mode:'closed',starts_at:null,ends_at:null,max_votes:2,round:1,show_timer:1,top_votes:0,top_likes:0,innovation_award:0,peoples_award:0,submission_mode:'open',submission_ends_at:null,show_welcome:1,voting_started_at:null};
+    const currentSettings = (await client.query('SELECT * FROM settings WHERE id=1')).rows[0];
+    if (!currentSettings || Object.keys(pristine).some(key => currentSettings[key] !== pristine[key])) throw new Error('Target settings have been changed. Import refused; use a fresh target.');
     if (dryRun) {
       await client.query('ROLLBACK');
       return { dryRun: true, counts, images: images.length, sessionsImported: 0, challengesImported: 0 };
@@ -69,8 +73,8 @@ export async function importSQLite({ source, pool, targetDir, dryRun = false }) 
       const destination = resolve(targetDir,'uploads',name);
       if (!existsSync(destination)) {
         copyFileSync(resolve(dirname(source),'uploads',name), destination);
-        chmodSync(destination, 0o600);
         copied.push(destination);
+        chmodSync(destination, 0o600);
       }
     }
     await client.query('DELETE FROM settings WHERE id=1');
@@ -83,6 +87,9 @@ export async function importSQLite({ source, pool, targetDir, dryRun = false }) 
       if (JSON.stringify(canonical(table, imported)) !== JSON.stringify(canonical(table, rows[table]))) throw new Error(`Validation mismatch for ${table}; transaction rolled back.`);
     }
     await client.query("SELECT setval(pg_get_serial_sequence('audit','id'), COALESCE((SELECT MAX(id) FROM audit),1), EXISTS(SELECT 1 FROM audit))");
+    const fingerprint = createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.keys(columns).map(table => [table,canonical(table,rows[table])])))).digest('hex');
+    await client.query('INSERT INTO data_imports(id,source_fingerprint,imported_at) VALUES(1,$1,$2)',[fingerprint,new Date().toISOString()]);
+    commitAttempted = true;
     await client.query('COMMIT');
     committed = true;
     // Rebuild the historical file from the authoritative imported audit rows.
@@ -95,8 +102,9 @@ export async function importSQLite({ source, pool, targetDir, dryRun = false }) 
   } catch (error) {
     if (!committed) {
       await client.query('ROLLBACK');
-      for (const path of copied) try { unlinkSync(path); } catch {}
+      if (!commitAttempted) for (const path of copied) try { unlinkSync(path); } catch {}
     }
+    if (commitAttempted && !committed) throw new Error('Commit outcome is uncertain. Copied images were preserved. Check target rows before retrying import.', { cause: error });
     if (committed) throw new Error('Rows were imported successfully, but writing the file log failed. Do not rerun import; inspect the target and restore the file log separately.', { cause: error });
     throw error;
   } finally { client.release(); }

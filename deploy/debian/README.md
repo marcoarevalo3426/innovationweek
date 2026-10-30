@@ -1,5 +1,7 @@
 # Production deployment on Debian GNU/Linux
 
+> **PostgreSQL release:** Configure the database with [the PostgreSQL/SES guide](../postgresql-ses/README.md) before starting the service. The app no longer initializes SQLite. Use the updated production environment template, restore/import your data or run `npm run db:migrate` with the migration owner's credentials, then start the runtime service with `DB_AUTO_MIGRATE=false`.
+
 Run the application directly on a fresh Debian 12/13 Lightsail instance using **Node.js 24, systemd, Nginx and Let's Encrypt**. This deployment uses no Docker, Caddy or Snap. The application source requires no OS-specific changes.
 
 These are deployment instructions and configuration templates, not an automated remote deployment. They have not been executed on your AWS instance. Replace every placeholder before starting the service.
@@ -115,7 +117,7 @@ sudo systemctl status innovation-week --no-pager
 curl -fsS http://127.0.0.1:3001/api/health
 ```
 
-The health endpoint should return `{"ok":true}`. The supplied service runs as `innovation`, starts after reboot, and restarts after a process failure. The database tables and upload directory are created automatically on startup. Production settings and SMTP configuration must be complete for startup to succeed.
+The health endpoint should return `{"ok":true,"database":"postgres"}`. The supplied service runs as `innovation`, starts after reboot, and restarts after a process failure. The PostgreSQL schema must already be migrated; the upload directory is created on startup. Production settings and SMTP configuration must be complete for startup to succeed.
 
 Source: [systemd service configuration](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html).
 
@@ -169,7 +171,7 @@ Sources: [Debian Certbot package](https://packages.debian.org/trixie/certbot), [
 
 Open your HTTPS hostname. Sign in with the email listed in `ADMIN_EMAILS` and enter the emailed code. Configure the welcome section, voting dates, submission deadline, awards and co-admin permissions through Admin.
 
-A fresh database has no sample ideas. The local development authentication bypass remains disabled in production.
+A freshly migrated empty PostgreSQL database has no sample ideas. The local development authentication bypass remains disabled in production.
 
 ## Operations and updates
 
@@ -193,4 +195,4 @@ sudo systemctl restart innovation-week
 
 For source updates, stop the app, back up its data, replace the code while preserving `/var/lib/innovation-week` and `/etc/innovation-week.env`, then run `npm ci --include=dev`, `npm run build`, `npm prune --omit=dev`, and start the service again. Run build commands as the deployment user, not root.
 
-For a simple consistent backup, stop the service before archiving the entire data directory, then restart it. Keep backup copies outside the instance. Back up the production environment file separately as sensitive configuration. Deleting or replacing `/var/lib/innovation-week` loses the stored ideas, uploads, likes, votes and audit history.
+Back up PostgreSQL with managed database backups or `pg_dump`, and back up `/var/lib/innovation-week` separately for images and the file log. Stop app writes for a coordinated database/image snapshot. The data directory alone is not a database backup after this conversion. Retain protected environment settings and backups outside the instance.

@@ -1,5 +1,7 @@
 # Make the uploaded app public on a Lightsail Node.js blueprint
 
+> **PostgreSQL release:** Configure the database with [the PostgreSQL/SES guide](../postgresql-ses/README.md) before starting the service. The app no longer initializes SQLite. Use the updated production environment template, restore/import your data or run `npm run db:migrate` with the migration owner's credentials, then start the runtime service with `DB_AUTO_MIGRATE=false`.
+
 Use this guide **after copying the full project to your instance**. It runs the app without Docker or Caddy, using Node.js, systemd and an HTTPS reverse proxy. You do not need a Lightsail launch script after the instance has already been created.
 
 These commands target **Debian GNU/Linux**, as requested. They are instructions to run in your Lightsail SSH terminal, not commands already executed on your AWS account. Replace example paths, domain names and email settings. A domain name and working SMTP delivery are needed for the production login flow; production session cookies require HTTPS.
@@ -73,7 +75,7 @@ sudo chmod -R u+rwX,go+rX /opt/innovation-week
 cd /opt/innovation-week
 ```
 
-If you already uploaded directly into `/opt/innovation-week`, skip `rsync` and apply the ownership/read permissions there. The transfer intentionally excludes local data, secrets and Mac dependencies. It starts a new production database. Migrating existing event data is a separate backup/restore operation. Keep environment secrets outside any public document root.
+If you already uploaded directly into `/opt/innovation-week`, skip `rsync` and apply the ownership/read permissions there. The transfer intentionally excludes local data, secrets and Mac dependencies. Configure the separate PostgreSQL database before startup. Migrating existing event data is a separate backup/restore operation. Keep environment secrets outside any public document root.
 
 ## 4. Confirm Node.js 24 and build on Linux
 
@@ -81,7 +83,7 @@ This application needs **Node.js 24.14 or newer**; use the supported 24.x releas
 
 ```sh
 node --version
-node -e "require('node:sqlite'); console.log('SQLite runtime available')"
+node -e "console.log('Node runtime ready:', process.version)"
 ```
 
 If the installed Node is older, or is in a private home-directory version-manager folder, install a system-wide Node 24 runtime:
@@ -172,7 +174,7 @@ sudo systemctl status innovation-week --no-pager
 curl -fsS http://127.0.0.1:3001/api/health
 ```
 
-The `sudo -u innovation` check must succeed before starting the service. If the selected binary is inaccessible, use the system-wide installation in step 4. The health response should be `{"ok":true}`. SQLite tables, uploads and audit storage initialize automatically in `/var/lib/innovation-week`. No separate database installation is needed.
+The `sudo -u innovation` check must succeed before starting the service. If the selected binary is inaccessible, use the system-wide installation in step 4. The health response should be `{"ok":true,"database":"postgres"}`. The PostgreSQL schema must already exist on the configured database. Uploads and the file log use `/var/lib/innovation-week`; database records live in PostgreSQL.
 
 If startup fails, inspect `sudo journalctl -u innovation-week -n 100 --no-pager`. Fix configuration or permissions before configuring public routing. The service stays running after SSH disconnects and starts on reboot. Source: [systemd service configuration](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html).
 
@@ -315,7 +317,7 @@ sudo systemctl is-enabled innovation-week
 sudo systemctl list-timers certbot.timer --no-pager
 ```
 
-HTTP should redirect to HTTPS and HTTPS health should return `{"ok":true}`. From your own computer or phone, open **https://innovation.yourdomain.com**. The app should show the NEP email login page. Request a code using the actual NEP email in `ADMIN_EMAILS`, verify receipt, and sign in. Configure voting, submissions and awards in Admin. Test an image upload, a second ordinary user and mobile access before sharing the address.
+HTTP should redirect to HTTPS and HTTPS health should return `{"ok":true,"database":"postgres"}`. From your own computer or phone, open **https://innovation.yourdomain.com**. The app should show the NEP email login page. Request a code using the actual NEP email in `ADMIN_EMAILS`, verify receipt, and sign in. Configure voting, submissions and awards in Admin. Test an image upload, a second ordinary user and mobile access before sharing the address.
 
 After a first successful launch, reboot once during a suitable maintenance window with `sudo reboot`, reconnect, and repeat the HTTPS health and login checks. This verifies both Node and the existing web server return after reboot. Enable Lightsail automatic snapshots and retain data backups outside the instance.
 
@@ -337,9 +339,9 @@ App logs: `sudo journalctl -u innovation-week -n 100 --no-pager`. Avoid publishi
 ## Future updates and backups
 
 1. Stop the app with `sudo systemctl stop innovation-week`.
-2. Back up the **entire** `/var/lib/innovation-week` directory while stopped, then retain a copy outside the instance. Back up `/etc/innovation-week.env` separately as sensitive configuration.
+2. Back up PostgreSQL with its database tools/managed snapshots, and back up the **entire** `/var/lib/innovation-week` directory separately for images/logs. Retain copies outside the instance. Back up `/etc/innovation-week.env` separately as sensitive configuration.
 3. Update only the source in `/opt/innovation-week`; preserve the data directory, environment file and proxy/certificate configuration.
 4. As the deployment user, run `npm ci --include=dev`, `npm run build` and `npm prune --omit=dev`.
 5. Run `sudo systemctl start innovation-week` and repeat the health check.
 
-After editing production environment settings, run `sudo systemctl restart innovation-week`. Database migrations happen automatically on startup. Do not seed demonstration data in production, delete the data directory, or replace it with a development database during routine updates.
+After editing production environment settings, run `sudo systemctl restart innovation-week`. Production verifies the existing schema; run new versioned migrations with `npm run db:migrate` using the migration owner before startup. Do not seed demonstration data in production, delete the data directory, or replace it with a development database during routine updates.

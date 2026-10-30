@@ -80,3 +80,17 @@ test('remote PostgreSQL requires verified TLS and never accepts a SQLite backend
   assert.throws(()=>poolConfig({NODE_ENV:'production'}),/Production requires/);
   assert.equal(poolConfig({}).ssl,false);
 });
+
+test('an empty legacy import cannot be repeated, and changed target settings are protected',async t=>{
+  const database=await testDatabase();t.after(()=>database.cleanup());
+  const sourceDir=mkdtempSync(join(tmpdir(),'nep-empty-source-')),targetDir=mkdtempSync(join(tmpdir(),'nep-empty-target-'));
+  t.after(()=>{rmSync(sourceDir,{recursive:true,force:true});rmSync(targetDir,{recursive:true,force:true});});
+  const source=fixture(sourceDir);const sqlite=new DatabaseSync(source);
+  sqlite.exec("DELETE FROM users;DELETE FROM ideas;DELETE FROM votes;DELETE FROM likes;DELETE FROM audit;UPDATE settings SET mode='closed',max_votes=2,round=1,top_votes=0,innovation_award=0");sqlite.close();
+  await migrate(database.pool);
+  await database.pool.query('UPDATE settings SET max_votes=9 WHERE id=1');
+  await assert.rejects(importSQLite({source,pool:database.pool,targetDir}),/settings have been changed/);
+  await database.pool.query('UPDATE settings SET max_votes=2 WHERE id=1');
+  const report=await importSQLite({source,pool:database.pool,targetDir});assert.equal(report.counts.users,0);
+  await assert.rejects(importSQLite({source,pool:database.pool,targetDir}),/not empty/);
+});

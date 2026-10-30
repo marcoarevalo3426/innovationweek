@@ -66,3 +66,9 @@ CREATE TABLE audit (
 CREATE INDEX idx_ideas_user ON ideas(user_id);
 CREATE INDEX idx_votes_round_user ON votes(round,user_id);
 CREATE INDEX idx_sessions_expiry ON sessions(expires);
+-- Prevent repeating a legacy import even when the source event was empty.
+CREATE TABLE data_imports (
+  id INTEGER PRIMARY KEY CHECK (id=1),
+  source_fingerprint TEXT NOT NULL,
+  imported_at TEXT NOT NULL
+);

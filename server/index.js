@@ -420,32 +420,32 @@ app.patch('/api/admin/users/:id', async (req, res) => {
 });
 app.patch('/api/admin/settings', async (req, res) => {
   await transaction(async () => {
-  const old = await settings();
-  const flags = ['show_timer', 'show_welcome', 'top_votes', 'top_likes', 'innovation_award', 'peoples_award'];
-  const allowed = ['mode', 'starts_at', 'ends_at', 'max_votes', ...flags, 'submission_mode', 'submission_ends_at'];
-  if (Object.keys(req.body).some(k => !allowed.includes(k))) throw error(400, 'Unknown setting.');
-  const s = {
-    ...old,
-    ...req.body
-  };
-  if (!['open', 'closed', 'scheduled'].includes(s.mode)) throw error(400, 'Invalid voting mode.');
-  if (!['open', 'closed', 'scheduled'].includes(s.submission_mode)) throw error(400, 'Invalid submission mode.');
-  if (!Number.isInteger(s.max_votes) || s.max_votes < 1 || s.max_votes > 100) throw error(400, 'Maximum votes must be between 1 and 100.');
-  for (const k of flags) if (![0, 1].includes(s[k])) throw error(400, 'Display settings must be 0 or 1.');
-  for (const k of ['starts_at', 'ends_at', 'submission_ends_at']) if (s[k] !== null && (typeof s[k] !== 'string' || !Number.isFinite(Date.parse(s[k])))) throw error(400, 'Enter valid schedule dates.');
-  if (s.mode === 'scheduled' && (!s.starts_at || !s.ends_at || Date.parse(s.ends_at) <= Date.parse(s.starts_at))) throw error(400, 'Voting end must be after the start.');
-  if (s.mode === 'open' && !s.ends_at && ('mode' in req.body || 'ends_at' in req.body)) throw error(400, 'Set the voting end date and time to open voting.');
-  if (s.submission_mode === 'scheduled' && !s.submission_ends_at) throw error(400, 'Set the idea submission closing date and time.');
-  let startedAt = old.voting_started_at;
-  const votingChanged = ['mode', 'starts_at', 'ends_at'].some(k => Object.hasOwn(req.body, k) && s[k] !== old[k]);
-  if (votingChanged) {
-    const now = Date.now();
-    if (s.mode === 'scheduled') startedAt = Date.parse(s.starts_at) > now ? null : s.starts_at;else if (s.mode === 'open') startedAt = (await votingState(old)) === 'open' ? startedAt || new Date(now).toISOString() : new Date(now).toISOString();else if ((await votingState(old)) === 'open') startedAt = startedAt || (old.mode === 'scheduled' ? old.starts_at : new Date(now).toISOString());else if (old.mode === 'scheduled' && Date.parse(old.starts_at) <= now) startedAt = startedAt || old.starts_at;
-  }
-  await transaction(async () => {
-    await run(`UPDATE settings SET ${allowed.map((k, i) => k + '=$' + (i + 1)).join(',')},voting_started_at=$${allowed.length + 1} WHERE id=1`, ...allowed.map(k => s[k]), startedAt);
-    await audit(req.user.email, 'admin.settings_updated', req.body);
-  });
+    const old = await settings();
+    const flags = ['show_timer', 'show_welcome', 'top_votes', 'top_likes', 'innovation_award', 'peoples_award'];
+    const allowed = ['mode', 'starts_at', 'ends_at', 'max_votes', ...flags, 'submission_mode', 'submission_ends_at'];
+    if (Object.keys(req.body).some(k => !allowed.includes(k))) throw error(400, 'Unknown setting.');
+    const s = {
+      ...old,
+      ...req.body
+    };
+    if (!['open', 'closed', 'scheduled'].includes(s.mode)) throw error(400, 'Invalid voting mode.');
+    if (!['open', 'closed', 'scheduled'].includes(s.submission_mode)) throw error(400, 'Invalid submission mode.');
+    if (!Number.isInteger(s.max_votes) || s.max_votes < 1 || s.max_votes > 100) throw error(400, 'Maximum votes must be between 1 and 100.');
+    for (const k of flags) if (![0, 1].includes(s[k])) throw error(400, 'Display settings must be 0 or 1.');
+    for (const k of ['starts_at', 'ends_at', 'submission_ends_at']) if (s[k] !== null && (typeof s[k] !== 'string' || !Number.isFinite(Date.parse(s[k])))) throw error(400, 'Enter valid schedule dates.');
+    if (s.mode === 'scheduled' && (!s.starts_at || !s.ends_at || Date.parse(s.ends_at) <= Date.parse(s.starts_at))) throw error(400, 'Voting end must be after the start.');
+    if (s.mode === 'open' && !s.ends_at && ('mode' in req.body || 'ends_at' in req.body)) throw error(400, 'Set the voting end date and time to open voting.');
+    if (s.submission_mode === 'scheduled' && !s.submission_ends_at) throw error(400, 'Set the idea submission closing date and time.');
+    let startedAt = old.voting_started_at;
+    const votingChanged = ['mode', 'starts_at', 'ends_at'].some(k => Object.hasOwn(req.body, k) && s[k] !== old[k]);
+    if (votingChanged) {
+      const now = Date.now();
+      if (s.mode === 'scheduled') startedAt = Date.parse(s.starts_at) > now ? null : s.starts_at;else if (s.mode === 'open') startedAt = (await votingState(old)) === 'open' ? startedAt || new Date(now).toISOString() : new Date(now).toISOString();else if ((await votingState(old)) === 'open') startedAt = startedAt || (old.mode === 'scheduled' ? old.starts_at : new Date(now).toISOString());else if (old.mode === 'scheduled' && Date.parse(old.starts_at) <= now) startedAt = startedAt || old.starts_at;
+    }
+    {
+      await run(`UPDATE settings SET ${allowed.map((k, i) => k + '=$' + (i + 1)).join(',')},voting_started_at=$${allowed.length + 1} WHERE id=1`, ...allowed.map(k => s[k]), startedAt);
+      await audit(req.user.email, 'admin.settings_updated', req.body);
+    }
   });
   res.json({
     ok: true
@@ -472,10 +472,18 @@ app.get('/api/admin/audit', async (req, res) => {
       const rows = await all("SELECT * FROM audit WHERE id>$1 AND id<=$2 ORDER BY id LIMIT 500", after, limit);
       if (!rows.length) break;
       for (const row of rows) {
-        if (!res.write(JSON.stringify({ ...row, details: JSON.parse(row.details) }) + '\n')) {
+        if (!res.write(JSON.stringify({
+          ...row,
+          details: JSON.parse(row.details)
+        }) + '\n')) {
           await new Promise(resolve => {
-            const done = () => { res.off('drain', done); res.off('close', done); resolve(); };
-            res.once('drain', done); res.once('close', done);
+            const done = () => {
+              res.off('drain', done);
+              res.off('close', done);
+              resolve();
+            };
+            res.once('drain', done);
+            res.once('close', done);
           });
         }
         if (res.destroyed) break;

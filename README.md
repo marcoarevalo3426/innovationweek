@@ -1,32 +1,52 @@
 # NEP Innovation Week
 
-A complete local-first, single-page React application using the supplied NEP logo. React + Vite, Express, and a persistent SQLite database. Node.js 24.14 or newer is required. No AWS account is needed locally. The default local experience skips email authentication and opens the app as a development administrator.
+A complete local-first, single-page React application using the supplied NEP logo. React + Vite, Express, and a persistent PostgreSQL database. Node.js 24.14 or newer is required. No AWS account is needed locally. The default local experience skips email authentication and opens the app as a development administrator.
 
-## Start locally
+## Start locally with PostgreSQL
 
-Run these commands from the project directory. If you already have a `.env`, keep it and skip the copy command.
+Read the complete [local PostgreSQL and migration guide](deploy/postgresql/README.md) before starting an existing event. Run commands from this project folder.
 
 ```sh
 npm ci
+# For a new checkout only; keep an existing .env:
 cp .env.example .env
+```
+
+In Terminal 1, start the development PostgreSQL 16 server and keep it running:
+
+```sh
+npm run db:local
+```
+
+In Terminal 2, create the schema:
+
+```sh
+npm run db:migrate
+```
+
+If you have existing SQLite data, stop the old app and import it **before the first PostgreSQL app startup**:
+
+```sh
+npm run db:import:sqlite -- --source ./data/innovation.sqlite --dry-run
+npm run db:import:sqlite -- --source ./data/innovation.sqlite
+```
+
+Skip import for an empty event. The importer preserves the old source, users, ideas, files, likes, all vote rounds, settings and audit history. It refuses an already populated target. Sessions/codes are intentionally omitted. Keep `uploads/` beside the source SQLite file when importing a backup.
+
+Then start the app:
+
+```sh
+npm run db:check
 npm run dev
 ```
 
-Open http://127.0.0.1:5173. The API runs on port 3001. Vite reloads frontend edits; restart `npm run dev` after changing the server or environment settings.
+Open http://127.0.0.1:5173. The API runs on port 3001. PostgreSQL uses port 5432 by default, with development data under `data/postgres/`. Vite reloads frontend edits; restart the API after server/environment changes. If the Codex sandbox blocks PostgreSQL shared memory, run `db:local` in the macOS Terminal app.
 
-Local development opens directly as **Local Admin** (`local.admin@nepgroup.com`). There is no email form, code generation, email delivery or session creation. The sign-out control is hidden in this mode. Ideas, likes, votes and audit records still use a persistent user identity. Local admin permissions are granted only for local requests; the account is stored with `is_admin = 0`.
+Local development opens directly as **Local Admin** (`local.admin@nepgroup.com`) without an email form, delivery, code or session cookie. The stored account has `is_admin=0`; temporary development admin access requires unset/development `NODE_ENV` and a loopback `HOST`. Production and test email workflows do not use this bypass.
 
-The bypass is enabled only with an unset/development `NODE_ENV` and a loopback `HOST` (`127.0.0.1`, `localhost`, or `::1`). Production and automated authentication tests always use the email login flow, even if `LOCAL_AUTH_BYPASS=true`.
+To test email login locally, set `LOCAL_AUTH_BYPASS=false` and restart. Console email mode displays local codes; SMTP mode sends real mail. Only exact `@nepgroup.com` addresses are accepted. `ADMIN_EMAILS` applies when an account is first created; imported existing users retain their permissions.
 
-To test email login locally, set `LOCAL_AUTH_BYPASS=false` in `.env` and restart `npm run dev`. Enter a valid `@nepgroup.com` email. With `MAIL_MODE=console`, the code appears in the form and terminal, and no real email is sent. Use `admin@nepgroup.com` for the initial local email-auth administrator, or configure `ADMIN_EMAILS` before that email first signs in. Co-admin permissions are managed on the Administrators tab after a colleague has signed in once. Bootstrap emails apply only when an account is first created.
-
-The database starts empty. To optionally add sample ideas for local exploration before first use:
-
-```sh
-npm run seed:demo
-```
-
-This development-only command refuses to seed a nonempty gallery or a production database. It creates fictitious sample users and ideas. It is never run automatically.
+Optional fictitious demo data can be added with `npm run seed:demo` before use; it refuses a nonempty gallery or production. It is never run automatically. PostgreSQL must be running for all server commands; there is no SQLite fallback.
 
 ## Current interface and behaviour
 
@@ -80,11 +100,15 @@ The browser derives event states from server-adjusted time every second and refr
 
 ## Data and backup
 
-The `server/db.js` module initializes and migrates the SQLite schema automatically on startup. The separate `users` table stores the `is_admin` integer (1 or 0). Other tables are `ideas`, `likes`, `votes`, `settings`, `challenges`, `sessions`, and `audit`. Foreign keys and unique constraints protect relationships and duplicates. Critical writes run in SQLite transactions. SQL uses bound parameters.
+`server/db.js` now uses asynchronous PostgreSQL queries through `pg`. Versioned SQL lives in `server/migrations/`; `npm run db:migrate` applies it transactionally. Production defaults to schema verification without automatic DDL, allowing a separate migration owner and restricted runtime role.
 
-`DATA_DIR` contains the SQLite database, uploads, local secret and audit log. It is excluded from Git and the source ZIP. The app needs one writable persistent data directory. Do not put this directory in publicly served static files. For a simple complete backup, stop the server, back up the whole directory, then restart. For live backups use SQLite’s backup API rather than copying only the database while WAL mode is active. Exporting the audit log does not back up ideas or images.
+Tables are `users`, `ideas`, `likes`, `votes`, `settings`, `challenges`, `sessions` and `audit`, plus `schema_migrations` and `data_imports` migration metadata. IDs, UTC ISO strings and integer flags retain the existing API shape. Epoch values use PostgreSQL `BIGINT` and safely convert to JavaScript numbers. Unique keys and foreign keys enforce relationships. Parameterized SQL protects values.
 
-The ZIP and Docker image contain **no user data or login codes**. Rebuilding the frontend does not change the database.
+App mutations take a database-scoped transaction advisory lock to retain the original single-writer guarantees for the event. It protects vote/submission limits, OTP verification, event settings and administrator removal across concurrent connections. Transactional audit rows commit with their changes; file logs append after commit. For substantially larger write loads, revisit the locking design.
+
+PostgreSQL backups contain application records. `DATA_DIR` still contains uploaded images, `audit.jsonl` and the local secret; back these up separately and keep them outside any public document root. The local PostgreSQL helper also persists its cluster under `data/postgres/`. Do not copy a running raw cluster directory to AWS; use PostgreSQL dump/restore or managed database backups and coordinate an image snapshot while app writes are stopped.
+
+The old SQLite file is retained as an import/backup source and is not updated by the converted app. Source ZIPs and container images contain no user data or secrets. Building the frontend does not alter PostgreSQL records. See [the PostgreSQL guide](deploy/postgresql/README.md) for import validation, test isolation and AWS transfer steps.
 
 ## Email through Amazon SES or another SMTP provider
 
@@ -117,6 +141,15 @@ Visit http://127.0.0.1:3001. Express serves both the compiled SPA and API. Uploa
 For a real server set these in addition to SMTP settings:
 
 ```dotenv
+DB_CLIENT=postgres
+DB_AUTO_MIGRATE=false
+PGHOST=your-private-postgresql-endpoint
+PGPORT=5432
+PGDATABASE=innovation_week
+PGUSER=innovation_app
+PGPASSWORD=your-unique-database-password
+PGSSLMODE=verify-full
+PGSSLROOTCERT=/etc/ssl/certs/aws-rds-global-bundle.pem
 NODE_ENV=production
 HOST=0.0.0.0
 PORT=3001
@@ -128,21 +161,17 @@ TRUST_PROXY=1
 
 Use the exact external origin without a trailing slash. Generate a secret with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. Set `TRUST_PROXY=1` only when exactly one trusted reverse proxy sits in front of Node. Restrict direct public access to port 3001 and terminate HTTPS at that proxy. Production cookies require HTTPS. Production startup refuses console email mode, missing SMTP credentials, a short/missing secret, a missing origin or an unconfigured initial administrator.
 
-A fresh production database starts with an empty gallery, closed voting, the welcome section enabled and idea submissions open. Switching to production does not reset an existing database or its event settings. Set up the event in the Admin screen after first login. Test email delivery with your actual SMTP account before launch; external email delivery was not tested without credentials.
+A newly migrated empty PostgreSQL database starts with an empty gallery, closed voting, the welcome section enabled and idea submissions open. Switching to production does not reset an existing database or its event settings. Set up the event in the Admin screen after first login. Test email delivery with your actual SMTP account before launch; external email delivery was not tested without credentials.
 
-### Suggested AWS deployment
+### AWS deployment with PostgreSQL and SES
 
-For the simplest first deployment, use **one Amazon Lightsail instance**, run this Node service with a persistent data disk and HTTPS reverse proxy, and keep the included SQLite database. SQLite is a file-based database running on your instance, rather than an AWS-managed database service. It fits a modest internal event on a single server.
+Use one Lightsail app instance and a private **Lightsail managed PostgreSQL database** in the same account/Region. The app now uses PostgreSQL locally and remotely, so the later move requires a database dump/restore and production connection settings rather than another driver rewrite. Keep a persistent image directory and HTTPS reverse proxy.
 
-If you want an **AWS-managed database**, recommend **PostgreSQL on Amazon Lightsail Managed Databases**. AWS manages common maintenance and backups. Moving this implementation to PostgreSQL requires replacing the SQLite database adapter/schema and migrating its rows; it is a future migration, not an environment-variable switch. For multiple app instances, also move uploads to S3 and use shared rate-limit storage, and centralize/retain audit logs. Do not run this SQLite implementation as a horizontally scaled or ephemeral serverless service.
+Follow [the AWS PostgreSQL and SES guide](deploy/postgresql-ses/README.md) for a restricted app database role, verified TLS with AWS's CA bundle, PostgreSQL dump/restore, image transfer, SES, production startup, validation and rollback. [The local guide](deploy/postgresql/README.md) covers the initial SQLite import.
 
-References: [Lightsail managed databases](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-databases.html), [PostgreSQL connections](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-connecting-to-postgres-database.html).
+The production environment template in `deploy/postgresql-ses/production.env.example` is implemented by this release. Use `DB_AUTO_MIGRATE=false` for the runtime role and run schema migrations separately with the schema owner. Remote PostgreSQL requires `PGSSLMODE=verify-full`; the app rejects remote unverified connections and never falls back to SQLite.
 
-### Migrate to PostgreSQL and Amazon SES
-
-The [Lightsail PostgreSQL and SES migration guide](deploy/postgresql-ses/README.md) covers the required database-layer conversion, private managed PostgreSQL with verified TLS, restricted database accounts, SES setup, existing-data and image transfer, validation, public deployment and rollback. A proposed production environment template is included.
-
-The current application still runs on SQLite. The guide documents PostgreSQL implementation work that must be completed before cutover; it does not enable PostgreSQL by configuration alone. SES SMTP is already supported.
+For multiple app instances, move uploads to shared storage such as S3, use shared rate-limit storage and centralize logs. No AWS deployment or SES delivery test has been performed without your credentials.
 
 ### Lightsail Node.js blueprint: after uploading the files
 
@@ -181,27 +210,31 @@ Put an HTTPS reverse proxy in front of `127.0.0.1:3001`. The named Docker volume
 | `shared/event-state.js` | Voting, submission and homepage-panel rules shared by client and server. |
 | `server/index.js` | Express API, authentication, uploads, permissions and audit endpoints. |
 | `server/auth-mode.js` | Local-only authentication-bypass rules. |
-| `server/db.js` | SQLite initialization, migrations, transactions and audit logging. |
+| `server/db.js` | PostgreSQL pool, asynchronous queries, transactions and audit logging. |
+| `server/migrations/` | Versioned PostgreSQL schema migrations. |
+| `server/sqlite-import.js` | Read-only legacy SQLite transfer with row/file validation. |
+| `scripts/` | Local PostgreSQL helper, schema migration, import, checks and isolated tests. |
 | `server/seed.js` | Optional development sample ideas. |
 | `public/nep-innovation-week.png` | Supplied NEP Innovation Week logo. |
 | `tests/` | API/event-state/local-access tests and the optional browser workflow. |
 | `deploy/debian/` | Native Debian production guide and systemd/Nginx/environment templates. |
 | `deploy/lightsail-nodejs/` | After-upload public-access guide for Debian Node.js blueprints, including Apache HTTP/HTTPS templates. |
-| `deploy/postgresql-ses/` | PostgreSQL/SES migration instructions and a proposed environment template; PostgreSQL support requires application changes. |
+| `deploy/postgresql/` | Local PostgreSQL setup, SQLite import and AWS handoff steps. |
+| `deploy/postgresql-ses/` | Implemented PostgreSQL/SES production environment and AWS dump/restore guide. |
 | `dist/` | Generated frontend output from `npm run build`. |
-| `data/` | Default local database, uploads, secret and audit log; excluded from source archives. |
+| `data/` | Uploads, file log, local secret and development PostgreSQL cluster; excluded from source archives. |
 
 ## Verification
 
 ```sh
 npm test
 npm run build
-npm audit
-# Optional automated browser suite:
-npx playwright install chromium
-npm run test:e2e
 ```
 
-Event tests cover exact voting/submission boundaries and a repeatable migration of an existing database, welcome-panel defaults/toggles, and automatic transitions before, during and after voting. API tests cover both manual and scheduled submission closure, admin enforcement, reopening, and editing after closure. The local-access tests verify automatic admin access without cookies, disabled code endpoints, persistence of the local identity, skipped SMTP initialization, explicit opt-out and production isolation. The API test suite uses an isolated temporary database and covers authentication, domain validation, OTP lockout/replay, upload validation, ownership, submission limits, like toggles, vote limits/withdrawals/resets, schedule boundaries, role changes, moderation, audit export and session revocation. It does not touch the local app’s data. The browser suite also uses an isolated temporary database and includes desktop, tablet and mobile workflows. If Chromium is already installed elsewhere, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its executable.
+The test runner provisions a temporary PostgreSQL cluster and isolated schemas. If a macOS sandbox blocks database startup, run `npm run db:local` in Terminal and use `TEST_USE_LOCAL_POSTGRES=true npm test`. This mode uses only a loopback server and creates/drops separate test schemas, leaving the event tables in `public` unchanged.
 
-The latest completed automated run passed **26 tests** covering API, event-state, migration and local-access behaviour. Production builds passed after the subsequent dialog and typography updates. In-app browser checks verified the welcome toggle, voting countdown, submission deadlines (including a form already open), explicit dialog dismissal, save confirmations, duplicate-submission prevention, the 10px minimum text size, and the 14px countdown subheader without its former extra message. `npm audit` reported zero vulnerabilities at the original dependency handoff; that audit is historical, not a fresh scan on every documentation update. The automated browser suite could not launch Chromium within the execution sandbox; the in-app browser was used for interactive visual and workflow checks. Live SMTP/SES delivery and an AWS deployment remain environment-specific setup steps.
+The suite covers the full API workflow, development authentication isolation, voting/submission boundaries, repeatable PostgreSQL migrations, SQLite import validation/rollback/repeat refusal, parallel vote/submission limits, OTP replay/attempt counts, administrator removal, integer types and transactional audit logging. A production frontend build and actual PostgreSQL tests are separate checks; SQL-only validation is not equivalent to native multi-connection testing.
+
+The optional Playwright browser suite requires a running loopback PostgreSQL server and uses a separate schema. Install Chromium with `npx playwright install chromium`, then run `npm run test:e2e`. See its configuration for executable overrides. No tests should target production event tables.
+
+Current conversion checks: the frontend build and production dependency audit passed. **32 checks passed using a PostgreSQL WASM engine through a temporary protocol bridge**, including the API, import and parallel-request workflows. That validation bridge is outside the app and is not shipped. Native PostgreSQL 16 startup/testing is pending because the macOS sandbox blocked shared-memory creation; start the database from Terminal and run the native suite before production. Existing live SQLite data has not been imported automatically.

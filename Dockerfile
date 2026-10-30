@@ -12,6 +12,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force && mkdir /data && chown node:node /data
 COPY --from=build /app/dist ./dist
 COPY server ./server
+COPY scripts ./scripts
 COPY shared ./shared
 USER node
 VOLUME ["/data"]

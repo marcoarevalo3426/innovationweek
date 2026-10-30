@@ -12,7 +12,7 @@
     "start": "node --env-file-if-exists=.env server/index.js",
     "test": "node --env-file-if-exists=.env scripts/test.js",
     "seed:demo": "node --env-file-if-exists=.env server/seed.js",
-    "test:e2e": "npm run build && playwright test",
+    "test:e2e": "npm run build && node --env-file-if-exists=.env node_modules/@playwright/test/cli.js test",
     "db:local": "node --env-file-if-exists=.env scripts/local-postgres.js",
     "db:migrate": "node --env-file-if-exists=.env scripts/db-migrate.js",
     "db:import:sqlite": "node --env-file-if-exists=.env scripts/import-sqlite.js",

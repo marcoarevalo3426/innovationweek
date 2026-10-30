@@ -1,0 +1,59 @@
+.env.example
+  s_1637736c36f889::t_a75e45603f3f49 1-11
+Dockerfile
+  s_1637736c36f889::t_5b7d1db3e969da 15
+README.md
+  s_1637736c36f889::t_da0d105ef9f1c5 3,5,7,11,15-21,23-27,29-32,34,36,39-40,43-49,103-105,107,109-111,144-152,164,166,168,170,172,174,213-216,222-223,225,234-238,240
+deploy/debian/README.md
+  s_1637736c36f889::t_718e6e27be8143 3-4,120,174,198
+deploy/debian/production.env.example
+  s_1637736c36f889::t_0bfcffc7096108 7,11-23,25,28-30
+deploy/lightsail-nodejs/README.md
+  s_1637736c36f889::t_b900a7a1333436 3-4,78,86,177,320,342,347
+deploy/postgresql-ses/README.md
+  s_1637736c36f889::t_a1a38487eb24f5 1,3,5,7,9,11,13,15,17,19,21-26,28,30-32,34,36,38,40,42,48-49,52,55,58,66,68,70,73-75,78,80,83,86,88,91-99,102-104,106,108-113,115-131,133,135,137,139-144,146,148,150,152,154,156-159,161,163-168,170,172,174,176,178
+deploy/postgresql-ses/production.env.example
+  s_1637736c36f889::t_9c1c57029314da 11,13-14,20
+deploy/postgresql/README.md
+  s_1637736c36f889::t_e8a5c182abc756 1-158
+package.json
+  s_1637736c36f889::t_aa1994809d75fe 15
+playwright.config.js
+  s_1637736c36f889::t_27ec74f3bfeb89 1-2,7-11,13
+scripts/db-check.js
+  s_1637736c36f889::t_512a11f4e9d99e 8
+scripts/local-postgres.js
+  s_1637736c36f889::t_7e9ce1d15ba891 3,7,9,22,25,27-39
+scripts/test.js
+  s_1637736c36f889::t_5dfddd5ebb180e 9,16,31
+server/index.js
+  s_1637736c36f889::t_b3c1804b20efd5 423-448,475-478,480-486
+server/migrate.js
+  s_1637736c36f889::t_357a80de96212b 3-4,10,14-17
+server/migrations/001-postgresql.sql
+  s_1637736c36f889::t_564c7891c97f1f 69-74
+server/sqlite-import.js
+  s_1637736c36f889::t_74acb77a08fd35 52,59,63-65,77,90-92,105,107
+tests/browser/teardown.js
+  s_1637736c36f889::t_0d7284a0fc7d34 2-9
+tests/concurrency.test.js
+  s_1637736c36f889::t_597129e2980884 1-77
+tests/postgres.test.js
+  s_1637736c36f889::t_325dc21c8a7e0f 83-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8da2cc713f1549061f1d084ff8793308ae63a9e5",
+  "prompts": {},
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

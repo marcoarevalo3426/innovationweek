@@ -1,0 +1,44 @@
+.env.production
+  h_fc43b80cbcd575 1
+.gitignore
+  s_1637736c36f889::t_c5e5a1e8590f15 4
+README.md
+  s_1637736c36f889::t_e4bc8ee0998689 176-181,228,247
+amplify/data/resource.ts
+  s_1637736c36f889::t_b7fb85ef7478ea 1-53
+deploy/amplify/README.md
+  s_1637736c36f889::t_9747c6697ca014 81
+deploy/amplify/rewrites.example.json
+  s_1637736c36f889::t_efeb955abb9a8f 9
+src/App.jsx
+  s_1637736c36f889::t_99b4b51777c198 1,68,72-86,102-103
+src/styles.css
+  s_1637736c36f889::t_91cbfc40c6d765 22-23
+tests/api-client.test.js
+  s_1637736c36f889::t_3b11fe8bf69596 1-38
+tests/api-proxy.test.js
+  s_1637736c36f889::t_d2415efe98209f 1-25
+tests/api.test.js
+  s_1637736c36f889::t_1ac8e9f1f3c061 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "83fe2de3048ecf243228266b3de682a5b10e2b95",
+  "prompts": {},
+  "humans": {
+    "h_fc43b80cbcd575": {
+      "author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

@@ -4,3 +4,8 @@ dist/
 data/
 playwright-report/
 test-results/
+
+# amplify
+.amplify
+amplify_outputs*
+amplifyconfiguration*

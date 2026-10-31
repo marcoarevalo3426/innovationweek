@@ -1,0 +1,14 @@
+[
+  {
+    "source": "/api/<*>",
+    "target": "https://api.yourdomain.com/api/<*>",
+    "status": "200",
+    "condition": null
+  },
+  {
+    "source": "</^(?!api(?:/|$))[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>",
+    "target": "/index.html",
+    "status": "200",
+    "condition": null
+  }
+]

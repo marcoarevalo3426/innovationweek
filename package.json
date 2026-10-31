@@ -19,6 +19,7 @@
     "db:check": "node --env-file-if-exists=.env scripts/db-check.js"
   },
   "dependencies": {
+    "aws-amplify": "^6.22.2",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
@@ -33,10 +34,17 @@
     "sharp": "^0.35.5"
   },
   "devDependencies": {
+    "@aws-amplify/backend": "^1.25.1",
+    "@aws-amplify/backend-cli": "^1.10.0",
     "@playwright/test": "^1.56.1",
     "@vitejs/plugin-react": "^5.1.0",
+    "aws-cdk-lib": "^2.268.0",
     "concurrently": "^9.2.1",
+    "constructs": "^10.8.1",
     "embedded-postgres": "^16.15.0-beta.19",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
     "vite": "^7.1.12"
   }
 }

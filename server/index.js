@@ -59,6 +59,13 @@ app.use(helmet({
     }
   } : false
 }));
+// Authentication and per-user API data must not be stored in a shared CDN
+// cache when the frontend proxies these routes through Amplify/CloudFront.
+app.use('/api', (_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store, max-age=0');
+  res.vary('Cookie');
+  next();
+});
 app.use(express.json({
   limit: '20kb'
 }));

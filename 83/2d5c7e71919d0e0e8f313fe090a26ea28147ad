@@ -1,0 +1,36 @@
+deploy/amplify/amplify-static.example.yml
+  s_1637736c36f889::t_4cf72bdde1bac6 1-20
+deploy/amplify/README.md
+  s_1637736c36f889::t_4cf72bdde1bac6 1-124
+deploy/amplify/rewrites.example.json
+  s_1637736c36f889::t_4cf72bdde1bac6 1-14
+server/index.js
+  s_1637736c36f889::t_4cf72bdde1bac6 62-68
+dev/api-proxy.js
+  s_1637736c36f889::t_93b0069f339dea 1-17
+src/api-client.js
+  s_1637736c36f889::t_95f494c5bb931d 1-49
+vite.config.js
+  s_1637736c36f889::t_f4320bc739d651 1,3-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "832d5c7e71919d0e0e8f313fe090a26ea28147ad",
+  "prompts": {},
+  "humans": {
+    "h_fc43b80cbcd575": {
+      "author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

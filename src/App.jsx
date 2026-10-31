@@ -1,3 +1,4 @@
+import { api } from './api-client.js';
 import { getVotingStatus, getSubmissionStatus, getHomepageHero } from '../shared/event-state.js';
 import { VotingHero, SubmissionNotice } from './VotingHero.jsx';
 import SubmissionControls from './SubmissionControls.jsx';
@@ -8,10 +9,6 @@ const Logo=({className=''})=><img className={`logo ${className}`} src="/nep-inno
 const person=email=>email?.split('@')[0].split(/[._-]/).map(s=>s.charAt(0).toUpperCase()+s.slice(1)).join(' ')||'Innovator';
 const initials=email=>person(email).split(' ').slice(0,2).map(x=>x[0]).join('');
 const dateLabel=date=>new Date(date).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
-async function api(path,options={}){
-  const response=await fetch('/api'+path,{credentials:'same-origin',...options,headers:{'X-Requested-With':'InnovationWeek',...(options.body instanceof FormData?{}:{'Content-Type':'application/json'}),...options.headers},body:options.body instanceof FormData?options.body:options.body?JSON.stringify(options.body):undefined});
-  const data=await response.json();if(!response.ok)throw Object.assign(new Error(data.error||'Something went wrong.'),{status:response.status});return data;
-}
 function Button({children,kind='',className='',...props}){return <button className={`button ${kind} ${className}`} {...props}>{children}</button>;}
 function Modal({title,children,onClose,wide=false,explicitCloseOnly=false}){
   const ref=useRef(),closeRef=useRef(onClose),explicitRef=useRef(explicitCloseOnly);closeRef.current=onClose;explicitRef.current=explicitCloseOnly;useEffect(()=>{const dialog=ref.current;dialog.showModal();const cancel=e=>{e.preventDefault();if(!explicitRef.current)closeRef.current();};dialog.addEventListener('cancel',cancel);return()=>{dialog.removeEventListener('cancel',cancel);dialog.close();};},[]);
@@ -68,10 +65,25 @@ function App(){
   const [now,setNow]=useState(Date.now());
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
   const [localAuth,setLocalAuth]=useState(false);
+  const [connectionError,setConnectionError]=useState(''),[authAttempt,setAuthAttempt]=useState(0);
   const [user,setUser]=useState(null),[checking,setChecking]=useState(true),[data,setData]=useState(null),[page,setPage]=useState('explore'),[query,setQuery]=useState(''),[sort,setSort]=useState('newest'),[filter,setFilter]=useState('all'),[editing,setEditing]=useState(undefined),[detail,setDetail]=useState(null),[confirmation,setConfirmation]=useState(null),[toast,setToast]=useState(null),[pending,setPending]=useState(false),[mobileNav,setMobileNav]=useState(false),[loadError,setLoadError]=useState('');
   const toastTimer=useRef(); const notify=useCallback((message,type='success')=>{setToast({message,type});clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(null),5000);},[]);
   const refresh=useCallback(async()=>{try{const result=await api('/ideas');setData({...result,serverOffset:result.serverTime-Date.now()});setLoadError('');return result;}catch(e){if(e.status===401){setUser(null);setData(null);setDetail(null);setEditing(undefined);}throw e;}},[]);
-  useEffect(()=>{api('/auth/me').then(result=>{setLocalAuth(!!result.localAuth);setUser(result.user);}).catch(e=>setLoadError(e.message)).finally(()=>setChecking(false));return()=>clearTimeout(toastTimer.current);},[]);
+  useEffect(()=>{
+    let active=true,retry;
+    setChecking(true);
+    const checkSession=async()=>{
+      try{
+        const result=await api('/auth/me');
+        if(active){setLocalAuth(!!result.localAuth);setUser(result.user);setConnectionError('');}
+      }catch(error){
+        if(active){setConnectionError(error.message);retry=setTimeout(checkSession,5000);}
+      }finally{if(active)setChecking(false);}
+    };
+    checkSession();
+    return()=>{active=false;clearTimeout(retry);};
+  },[authAttempt]);
+  useEffect(()=>()=>clearTimeout(toastTimer.current),[]);
   useEffect(()=>{if(!user)return;let active=true;const load=async()=>{try{await refresh();const result=await api('/auth/me');if(active){setLocalAuth(!!result.localAuth);setUser(old=>JSON.stringify(old)===JSON.stringify(result.user)?old:result.user);}}catch(e){if(active)setLoadError(e.message);}};load();const id=setInterval(load,15000);window.addEventListener('focus',load);return()=>{active=false;clearInterval(id);window.removeEventListener('focus',load);};},[user?.id,refresh]);
   useEffect(()=>{
     if(!data)return;
@@ -87,7 +99,8 @@ function App(){
   const navigate=id=>{setPage(id);setQuery('');setFilter('all');setMobileNav(false);window.scrollTo({top:0,behavior:'smooth'});};
   const logout=async()=>{try{await api('/auth/logout',{method:'POST'});}catch(e){if(e.status!==401){notify(e.message,'error');return;}}setUser(null);setData(null);setDetail(null);setEditing(undefined);setLoadError('');setPage('explore');};
   if(checking)return <div className="loading-page"><Logo/><LoaderCircle className="spin"/><p>Making room for bright ideas…</p></div>;
-  if(!user)return <><Login onLogin={u=>{setUser(u);setPage('explore');}}/>{loadError&&<div className="connection-error" role="alert">Cannot reach the API. Start the app with <code>npm run dev</code>.</div>}</>;
+  if(!user&&connectionError)return <main className="loading-page connection-state"><Logo/><AlertCircle size={30}/><h1>Let’s get you connected.</h1><p role="alert">{connectionError}</p><Button onClick={()=>setAuthAttempt(value=>value+1)}>Retry connection</Button></main>;
+  if(!user)return <Login onLogin={u=>{setUser(u);setPage('explore');}}/>;
   const ideas=data?.ideas||[],serverNow=now+(data?.serverOffset||0),rawSettings=data?.settings||{},s={...rawSettings,status:getVotingStatus(rawSettings,serverNow),submission_status:getSubmissionStatus(rawSettings,serverNow)};const mine=ideas.filter(i=>i.user_id===user.id);const canAdd=s.submission_status==='open'&&(user.is_admin||mine.length<2);
   const visible=ideas.filter(i=>(page!=='mine'||i.user_id===user.id)&&(filter!=='liked'||i.liked)&&(filter!=='voted'||i.voted)&&[i.title,i.problem,i.solution,i.skills,i.author].some(t=>t.toLowerCase().includes(query.toLowerCase()))).sort((a,b)=>sort==='likes'?b.likes-a.likes:sort==='votes'?b.votes-a.votes:b.created_at.localeCompare(a.created_at));
   const current=ideas.find(i=>i.id===detail);const isAdminPage=page==='admin'&&user.is_admin;

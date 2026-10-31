@@ -19,3 +19,5 @@
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 .idea-saved{padding:32px 12px;text-align:center;color:var(--purple)}.idea-saved>svg{margin-bottom:16px}.idea-saved h3{font-size:25px;margin-bottom:12px}.idea-saved p{font-size:13px;color:var(--muted);max-width:430px;margin:0 auto;line-height:1.8}
+
+.connection-state{padding:32px;text-align:center}.connection-state .logo{width:260px;max-width:80vw}.connection-state h1{font-size:24px;color:var(--ink);margin:0}.connection-state p{max-width:440px;line-height:1.6;margin:0;font-size:14px}

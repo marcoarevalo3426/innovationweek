@@ -78,7 +78,7 @@ Sources: [edit Amplify routing rules](https://docs.aws.amazon.com/amplify/latest
 
 ## 4. Publish the current frontend
 
-For an existing Git-connected deployment, build with `npm ci --include=dev` and `npm run build`, publishing **dist**. [amplify-static.example.yml](amplify-static.example.yml) is a frontend-only build example. It can be used as `amplify.yml` for a frontend-only pipeline, but do not overwrite an existing Amplify Gen 2 backend pipeline with it. Keep your backend deployment steps if they serve a separate purpose.
+For an existing Git-connected deployment, build with `npm ci --include=dev` and `npm run build`, publishing **dist**. [amplify-static.example.yml](amplify-static.example.yml) is a frontend-only build example. It can be used as `amplify.yml` for a frontend-only pipeline, but do not overwrite an existing Amplify Gen 2 backend pipeline with it. Keep your backend deployment steps if they serve a separate purpose. The local data ignore rule is anchored to `/data/` so it does not hide `amplify/data/` source files from Git.
 
 For a manual drag-and-drop deployment, run `npm run build` and upload a ZIP containing the **contents of dist**, with `index.html` at the ZIP root. The prepared `innovation-week-amplify-frontend.zip` has that layout. A full source ZIP and a static frontend ZIP serve different purposes; neither starts the Express process merely by being uploaded as static assets.
 

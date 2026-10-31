@@ -173,6 +173,12 @@ The production environment template in `deploy/postgresql-ses/production.env.exa
 
 For multiple app instances, move uploads to shared storage such as S3, use shared rate-limit storage and centralize logs. No AWS deployment or SES delivery test has been performed without your credentials.
 
+### Amplify frontend hosting: connect the Express API
+
+If the site loads on Amplify but sign-in reports an unreachable API, follow [the Amplify API routing guide](deploy/amplify/README.md). A static Vite deployment publishes the UI but does not start `server/index.js`. Deploy the API separately with PostgreSQL/SES, then add a **200 HTTPS rewrite for `/api/<*>` before the SPA fallback**. Set the backend's `APP_ORIGIN` to the Amplify/custom frontend origin. Routing and frontend build templates are provided under `deploy/amplify/`; they are not automatically applied to AWS.
+
+The generated Amplify Auth/Data scaffolding does not replace this app's existing `/api/auth/*` endpoints. Keep any existing backend pipeline unless deliberately adapting that architecture. The current frontend validates JSON responses, recovers from an unavailable API and no longer tells cloud users to start a local development server. API responses include private/no-store cache headers for cookie-based user data.
+
 ### Lightsail Node.js blueprint: after uploading the files
 
 Follow the [Lightsail Node.js public-access guide](deploy/lightsail-nodejs/README.md) after copying the full project to your server. It covers Debian-based Node.js blueprints, selecting the existing Bitnami Apache, Debian Apache or Nginx route, Node 24, the Linux build, production SMTP login, a persistent systemd service, static IP/DNS/firewall configuration, HTTPS and certificate renewal. Apache configuration templates are included. No launch script, Docker or Caddy is required.
@@ -219,6 +225,7 @@ Put an HTTPS reverse proxy in front of `127.0.0.1:3001`. The named Docker volume
 | `tests/` | API/event-state/local-access tests and the optional browser workflow. |
 | `deploy/debian/` | Native Debian production guide and systemd/Nginx/environment templates. |
 | `deploy/lightsail-nodejs/` | After-upload public-access guide for Debian Node.js blueprints, including Apache HTTP/HTTPS templates. |
+| `deploy/amplify/` | Amplify frontend/API connection guide, HTTPS rewrite example and frontend build template. |
 | `deploy/postgresql/` | Local PostgreSQL setup, SQLite import and AWS handoff steps. |
 | `deploy/postgresql-ses/` | Implemented PostgreSQL/SES production environment and AWS dump/restore guide. |
 | `dist/` | Generated frontend output from `npm run build`. |
@@ -237,4 +244,4 @@ The suite covers the full API workflow, development authentication isolation, vo
 
 The optional Playwright browser suite requires a running loopback PostgreSQL server and uses a separate schema. Install Chromium with `npx playwright install chromium`, then run `npm run test:e2e`. See its configuration for executable overrides. No tests should target production event tables.
 
-Current conversion checks: the frontend build and production dependency audit passed. **32 checks passed using a PostgreSQL WASM engine through a temporary protocol bridge**, including the API, import and parallel-request workflows. That validation bridge is outside the app and is not shipped. Native PostgreSQL 16 startup/testing is pending because the macOS sandbox blocked shared-memory creation; start the database from Terminal and run the native suite before production. Existing live SQLite data has not been imported automatically.
+Current checks: **36 tests passed against native PostgreSQL** using isolated test schemas, including API, migration/import, parallel-request and frontend response/proxy checks. The frontend build passed. Public Amplify routing and SES delivery still require testing against your deployed services. The earlier WASM checks were preliminary; native validation is now complete.

@@ -53,7 +53,7 @@ Optional fictitious demo data can be added with `npm run seed:demo` before use; 
 | Area | Current behaviour |
 | --- | --- |
 | Local sign-in | Opens as Local Admin without an email form, code, email delivery or session cookie. Production continues to require email authentication. |
-| Typography | All application text has a minimum font size of **10px**, including mobile layouts. |
+| Typography | All application text has a minimum font size of **11px**, including mobile layouts. |
 | Countdown subheader | The “Innovation week starts in” / “Innovation week ends in” text and remaining time are **14px** on desktop, tablet and mobile. The previous “Make your ideas count” text and its arrow icon have been removed. |
 | Before voting | The original **Big ideas. Brighter possibilities.** welcome section appears by default. Toggle it in **Admin → Homepage & awards → Show the welcome section before voting**, then save. |
 | During voting | The welcome section is replaced by the illustrated **Voting Open** panel and its live end-time countdown. |

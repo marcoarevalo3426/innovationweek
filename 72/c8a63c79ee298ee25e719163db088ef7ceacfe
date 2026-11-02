@@ -1,0 +1,43 @@
+deploy/amplify-postgresql/PRODUCTION.md
+  s_1637736c36f889::t_60ed086aafa05a 1-87,90-355
+  s_1637736c36f889::t_0378696d296818 88-89
+  s_1637736c36f889::t_c2864a0df2bbed 356
+deploy/amplify-postgresql/EC2-SERVER.md
+  s_1637736c36f889::t_0378696d296818 1-350
+  s_1637736c36f889::t_91c3dce7250bba 351
+server/pg-config.js
+  s_1637736c36f889::t_ccc765b6219aec 18
+  s_1637736c36f889::t_006190d99bc9af 3,11,14-17,19,29-39,45
+deploy/amplify-postgresql/README.md
+  s_1637736c36f889::t_60ed086aafa05a 3-4
+deploy/amplify-postgresql/SETUP.md
+  s_1637736c36f889::t_60ed086aafa05a 3-4
+README.md
+  s_1637736c36f889::t_0378696d296818 178-179
+  s_1637736c36f889::t_60ed086aafa05a 180-181
+package-lock.json
+  s_1637736c36f889::t_34ff8c20077cdf 11,10733-10749
+package.json
+  s_1637736c36f889::t_6486be59805534 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "72c8a63c79ee298ee25e719163db088ef7ceacfe",
+  "prompts": {},
+  "humans": {
+    "h_fc43b80cbcd575": {
+      "author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

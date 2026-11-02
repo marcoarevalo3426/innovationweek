@@ -1,5 +1,7 @@
 # Create the same PostgreSQL database in AWS and link the Amplify app
 
+**Existing Aurora IAM / Express configuration cluster:** use [production startup and connection checks](PRODUCTION.md). Express gateway clusters support IAM only and use Amazon trust certificates. Use automatic token generation instead of the generic password-mode template below. If still initializing an empty app database, keep the supplied schema/import instructions but use your working IAM/TLS connection.
+
 Follow this guide for the existing app at:
 
 **https://main.d3ha2gxpxiqxnu.amplifyapp.com**

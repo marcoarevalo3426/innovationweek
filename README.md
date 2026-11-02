@@ -175,6 +175,10 @@ For multiple app instances, move uploads to shared storage such as S3, use share
 
 ### PostgreSQL for Amplify: RDS and native Gen 2 integration
 
+Start with [the detailed Debian EC2 server creation guide](deploy/amplify-postgresql/EC2-SERVER.md) if the API instance does not yet exist. It covers the AWS console settings, database IAM role, official AMI, firewall, Elastic IP, SSH and server checks for the existing Amplify/Aurora setup.
+
+**Already have Amplify and Aurora, but no API server?** Follow [production startup and database checks](deploy/amplify-postgresql/PRODUCTION.md). It deploys Express on Debian EC2, uses the instance role for automatic IAM tokens, verifies PostgreSQL as the service user, enables HTTPS and links Amplify's API rewrite. Use [the IAM environment template](deploy/amplify-postgresql/backend-aurora-iam.env.example). `PG_AUTH_MODE=iam` requires `AWS_REGION`, explicit PostgreSQL host/database/user and verified TLS; omit `PGPASSWORD`. The default `PG_AUTH_MODE=password` preserves existing password-based installations. IAM-only Aurora Express gateway clusters require IAM mode and the appropriate Amazon root CA rather than the older generic password/RDS-bundle setup.
+
 Start with [the single setup walkthrough](deploy/amplify-postgresql/SETUP.md) to create the same database schema in AWS and link the existing Amplify frontend. The ready-to-run [schema SQL](deploy/amplify-postgresql/create-schema.sql) includes the app migration metadata and all constraints/defaults.
 
 The [Amplify PostgreSQL deployment guide](deploy/amplify-postgresql/README.md) explains RDS creation/private networking, database dump/restore, restricted roles, the existing Express connection and an optional native Amplify Gen 2 SQL integration. It includes an RDS server environment template and a Gen 2 pipeline example, without changing the active `amplify/` resources.

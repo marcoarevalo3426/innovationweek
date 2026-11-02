@@ -1,5 +1,7 @@
 # Deploy this app's PostgreSQL database for AWS Amplify
 
+**Already have an IAM-enabled Aurora database and an Amplify frontend?** Use [production startup and connection checks](PRODUCTION.md) to deploy the missing Express API on EC2. Aurora Express gateway clusters require IAM authentication and an Amazon trust certificate; the generic password/RDS-bundle examples below do not apply to that connection type.
+
 **Start here for the current app:** [single deployment walkthrough with the exact schema SQL](SETUP.md). It covers RDS creation, schema initialization, API configuration and linking your existing Amplify site.
 
 Your frontend is hosted at **https://main.d3ha2gxpxiqxnu.amplifyapp.com**, app ID `d3ha2gxpxiqxnu`, branch `main`.

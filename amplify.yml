@@ -1,0 +1,6 @@
+preBuild:
+  commands:
+    - nvm install 24.14.0
+    - nvm use 24.14.0
+    - node --version
+    - npm ci --include=dev --cache .npm --prefer-offline

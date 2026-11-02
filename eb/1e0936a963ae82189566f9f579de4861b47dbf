@@ -1,0 +1,15 @@
+amplify.yml
+  h_fc43b80cbcd575 1-4,9-23
+  h_fc43b80cbcd575 5-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb1e0936a963ae82189566f9f579de4861b47dbf",
+  "prompts": {},
+  "humans": {
+    "h_fc43b80cbcd575": {
+      "author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

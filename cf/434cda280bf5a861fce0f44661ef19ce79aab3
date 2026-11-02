@@ -1,0 +1,14 @@
+src/App.jsx
+  h_fc43b80cbcd575 27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cf434cda280bf5a861fce0f44661ef19ce79aab3",
+  "prompts": {},
+  "humans": {
+    "h_fc43b80cbcd575": {
+      "author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

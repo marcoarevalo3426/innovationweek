@@ -1,6 +1,23 @@
-preBuild:
-  commands:
-    - nvm install 24.14.0
-    - nvm use 24.14.0
-    - node --version
-    - npm ci --include=dev --cache .npm --prefer-offline
+version: 1
+
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 24.14.0
+        - nvm use 24.14.0
+        - node --version
+        - npm --version
+        - npm install --include=dev --cache .npm --prefer-offline
+    build:
+      commands:
+        - npm run build
+
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+
+  cache:
+    paths:
+      - .npm/**/*

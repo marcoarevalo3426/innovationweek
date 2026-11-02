@@ -1,0 +1,23 @@
+# Example for the staged native Amplify Gen 2 SQL integration only.
+# Review/merge existing pipelines. This does not start the current Express API.
+version: 1
+backend:
+  phases:
+    build:
+      commands:
+        - nvm install 24
+        - nvm use 24
+        - npm ci --include=dev
+        - npx ampx pipeline-deploy --branch "$AWS_BRANCH" --app-id "$AWS_APP_ID"
+frontend:
+  phases:
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*

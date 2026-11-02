@@ -18,6 +18,8 @@ This preserves the app's same-origin cookies and API URLs without a cross-origin
 
 Sources: [Amplify Hosting manual uploads](https://docs.aws.amazon.com/amplify/latest/userguide/manual-deploys.html), [HTTPS reverse-proxy rewrites](https://docs.aws.amazon.com/amplify/latest/userguide/redirect-rewrite-examples.html#reverse-proxy-rewrite).
 
+For RDS database creation, data transfer and the optional native Gen 2 SQL connector, see [PostgreSQL for Amplify](../amplify-postgresql/README.md).
+
 ## 1. Deploy or check the Node API
 
 Use the [PostgreSQL/SES deployment guide](../postgresql-ses/README.md) and [Lightsail Node.js blueprint guide](../lightsail-nodejs/README.md) to run the existing Express server, configure PostgreSQL, restore images, and put Apache/Nginx with a trusted HTTPS certificate in front of it.

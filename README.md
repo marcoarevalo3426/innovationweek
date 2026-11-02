@@ -173,6 +173,14 @@ The production environment template in `deploy/postgresql-ses/production.env.exa
 
 For multiple app instances, move uploads to shared storage such as S3, use shared rate-limit storage and centralize logs. No AWS deployment or SES delivery test has been performed without your credentials.
 
+### PostgreSQL for Amplify: RDS and native Gen 2 integration
+
+Start with [the single setup walkthrough](deploy/amplify-postgresql/SETUP.md) to create the same database schema in AWS and link the existing Amplify frontend. The ready-to-run [schema SQL](deploy/amplify-postgresql/create-schema.sql) includes the app migration metadata and all constraints/defaults.
+
+The [Amplify PostgreSQL deployment guide](deploy/amplify-postgresql/README.md) explains RDS creation/private networking, database dump/restore, restricted roles, the existing Express connection and an optional native Amplify Gen 2 SQL integration. It includes an RDS server environment template and a Gen 2 pipeline example, without changing the active `amplify/` resources.
+
+The default Amplify `Todo` model uses DynamoDB. Native PostgreSQL integration generates an AppSync/SQL Lambda connection to an existing database; it does not automatically replace the current REST login/voting API. The guide keeps those two deployment paths explicit.
+
 ### Amplify frontend hosting: connect the Express API
 
 If the site loads on Amplify but sign-in reports an unreachable API, follow [the Amplify API routing guide](deploy/amplify/README.md). A static Vite deployment publishes the UI but does not start `server/index.js`. Deploy the API separately with PostgreSQL/SES, then add a **200 HTTPS rewrite for `/api/<*>` before the SPA fallback**. Set the backend's `APP_ORIGIN` to the Amplify/custom frontend origin. Routing and frontend build templates are provided under `deploy/amplify/`; they are not automatically applied to AWS.
@@ -226,6 +234,7 @@ Put an HTTPS reverse proxy in front of `127.0.0.1:3001`. The named Docker volume
 | `deploy/debian/` | Native Debian production guide and systemd/Nginx/environment templates. |
 | `deploy/lightsail-nodejs/` | After-upload public-access guide for Debian Node.js blueprints, including Apache HTTP/HTTPS templates. |
 | `deploy/amplify/` | Amplify frontend/API connection guide, HTTPS rewrite example and frontend build template. |
+| `deploy/amplify-postgresql/` | RDS PostgreSQL migration and optional native Amplify Gen 2 SQL connection instructions. |
 | `deploy/postgresql/` | Local PostgreSQL setup, SQLite import and AWS handoff steps. |
 | `deploy/postgresql-ses/` | Implemented PostgreSQL/SES production environment and AWS dump/restore guide. |
 | `dist/` | Generated frontend output from `npm run build`. |

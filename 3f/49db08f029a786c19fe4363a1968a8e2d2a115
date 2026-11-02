@@ -1,0 +1,36 @@
+README.md
+  s_1637736c36f889::t_022016174b2dd7 176-183,237
+deploy/amplify-postgresql/README.md
+  s_1637736c36f889::t_f5568bc0f1c974 1-301
+deploy/amplify-postgresql/SETUP.md
+  s_1637736c36f889::t_a51cb474b68e1f 1-244
+deploy/amplify-postgresql/amplify-gen2.example.yml
+  s_1637736c36f889::t_f533d7c3a999a1 1-23
+deploy/amplify-postgresql/backend-rds.env.example
+  s_1637736c36f889::t_ce3f881f097433 1-25
+deploy/amplify-postgresql/create-schema.sql
+  s_1637736c36f889::t_089301e8169678 1-94
+deploy/amplify/README.md
+  s_1637736c36f889::t_81f89338a9268f 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3f49db08f029a786c19fe4363a1968a8e2d2a115",
+  "prompts": {},
+  "humans": {
+    "h_fc43b80cbcd575": {
+      "author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

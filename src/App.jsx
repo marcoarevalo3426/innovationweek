@@ -85,7 +85,26 @@ function App(){
     return()=>{active=false;clearTimeout(retry);};
   },[authAttempt]);
   useEffect(()=>()=>clearTimeout(toastTimer.current),[]);
-  useEffect(()=>{if(!user)return;let active=true;const load=async()=>{try{await refresh();const result=await api('/auth/me');if(active){setLocalAuth(!!result.localAuth);setUser(old=>JSON.stringify(old)===JSON.stringify(result.user)?old:result.user);}}catch(e){if(active)setLoadError(e.message);}};load();const id=setInterval(load,15000);window.addEventListener('focus',load);return()=>{active=false;clearInterval(id);window.removeEventListener('focus',load);};},[user?.id,refresh]);
+  useEffect(()=>{
+    if(!user)return;
+    let active=true,loading=false;
+    const load=async()=>{
+      if(loading||document.visibilityState==='hidden')return;
+      loading=true;
+      try{
+        const gallery=await refresh();
+        // New APIs include the current user so each poll needs only one network round trip.
+        const result=gallery.user?gallery:await api('/auth/me');
+        if(active){setLocalAuth(!!result.localAuth);setUser(old=>JSON.stringify(old)===JSON.stringify(result.user)?old:result.user);}
+      }catch(e){if(active)setLoadError(e.message);}
+      finally{loading=false;}
+    };
+    load();
+    const id=setInterval(load,15000);
+    window.addEventListener('focus',load);
+    document.addEventListener('visibilitychange',load);
+    return()=>{active=false;clearInterval(id);window.removeEventListener('focus',load);document.removeEventListener('visibilitychange',load);};
+  },[user?.id,refresh]);
   useEffect(()=>{
     if(!data)return;
     const s=data.settings,current=Date.now()+data.serverOffset;

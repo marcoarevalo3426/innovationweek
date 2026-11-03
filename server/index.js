@@ -11,13 +11,13 @@ import { resolve } from 'node:path';
 import { db, dataDir, get, all, run, audit, transaction, settings, votingState, submissionState } from './db.js';
 import { isLocalAuthEnabled } from './auth-mode.js';
 import { signInEmail } from './sign-in-email.js';
+import { isNepEmail, normalizeEmail } from '../shared/email-policy.js';
 const app = express();
 const production = process.env.NODE_ENV === 'production';
 const localAuth = isLocalAuthEnabled();
 const mailMode = process.env.MAIL_MODE || (production ? 'smtp' : 'console');
 const adminEmails = (process.env.ADMIN_EMAILS || (production ? '' : 'admin@nepgroup.com')).split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
-const emailValid = email => typeof email === 'string' && email.length <= 254 && /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@nepgroup\.com$/i.test(email) && !email.startsWith('.') && !email.includes('..') && !email.includes('.@');
-if (adminEmails.some(e => !emailValid(e))) throw Error('ADMIN_EMAILS must contain nepgroup.com email addresses.');
+if (adminEmails.some(e => !isNepEmail(e))) throw Error('ADMIN_EMAILS must contain nepgroup.com email addresses.');
 if (production && (mailMode !== 'smtp' || !process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32 || !process.env.APP_ORIGIN)) throw Error('Production requires SMTP, APP_ORIGIN, and a SESSION_SECRET of at least 32 characters.');
 if (production && !adminEmails.length && !(await get("SELECT id FROM users WHERE is_admin=1"))) throw Error('Configure ADMIN_EMAILS for the initial administrator.');
 const secretPath = resolve(dataDir, '.session-secret');
@@ -144,8 +144,8 @@ app.use('/api/auth', (req, res, next) => {
   next();
 });
 app.post('/api/auth/request', async (req, res) => {
-  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-  if (!emailValid(email)) throw error(400, 'Use a valid @nepgroup.com email address.');
+  const email = normalizeEmail(req.body.email);
+  if (!isNepEmail(email)) throw error(400, 'Use a valid @nepgroup.com email address.');
   const code = String(randomInt(0, 1000000)).padStart(6, '0');
   const now = Date.now();
   await transaction(async () => {
@@ -175,9 +175,9 @@ app.post('/api/auth/request', async (req, res) => {
   });
 });
 app.post('/api/auth/verify', async (req, res) => {
-  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const email = normalizeEmail(req.body.email);
   const code = String(req.body.code || '');
-  if (!emailValid(email) || !/^\d{6}$/.test(code)) throw error(400, 'This code is invalid or expired. Request a new code.');
+  if (!isNepEmail(email) || !/^\d{6}$/.test(code)) throw error(400, 'This code is invalid or expired. Request a new code.');
   const token = randomBytes(32).toString('hex');
   const result = await transaction(async () => {
     const challenge = await get("SELECT * FROM challenges WHERE email=$1", email);
@@ -193,6 +193,7 @@ app.post('/api/auth/verify', async (req, res) => {
     }
     let user = await get("SELECT * FROM users WHERE email=$1", email);
     if (!user) {
+      // Any NEP colleague may join after verifying their code; no invitation or admin listing is needed.
       await run("INSERT INTO users(id,email,is_admin,created_at) VALUES($1,$2,$3,$4)", randomUUID(), email, adminEmails.includes(email) ? 1 : 0, new Date().toISOString());
       user = await get("SELECT * FROM users WHERE email=$1", email);
     }

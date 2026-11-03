@@ -1,0 +1,7 @@
+{
+  "MailType": "TRANSACTIONAL",
+  "WebsiteURL": "https://nepinnovationweek.com",
+  "ContactLanguage": "EN",
+  "ProductionAccessEnabled": true,
+  "UseCaseDescription": "NEP Innovation Week is an employee innovation-ideas application at https://nepinnovationweek.com. We request SES production access in ap-southeast-2 to send transactional, user-requested sign-in verification emails to NEP colleagues. The application accepts only valid addresses on the exact nepgroup.com domain. A recipient initiates each email by entering their work address on the sign-in page. Each message contains a cryptographically random six-digit code that expires after ten minutes. The recipient must verify that code before a first-time account or authenticated session is created. Requests have a sixty-second per-address cooldown and additional API rate limits. This application does not send marketing campaigns or use purchased mailing lists. We will continue using a verified sender identity. SES account-level suppression for both BOUNCE and COMPLAINT is enabled in this region to prevent further sending to suppressed addresses. Production access is needed so colleagues do not need individual SES recipient verification before receiving their sign-in code."
+}

@@ -46,6 +46,8 @@ Local development opens directly as **Local Admin** (`local.admin@nepgroup.com`)
 
 To test email login locally, set `LOCAL_AUTH_BYPASS=false` and restart. Console email mode displays local codes; SMTP mode sends real mail. Only exact `@nepgroup.com` addresses are accepted. `ADMIN_EMAILS` applies when an account is first created; imported existing users retain their permissions.
 
+**Every colleague with a valid `@nepgroup.com` mailbox can join.** No invitation, pre-created account or administrator approval is required. A first-time account is created only after successful six-digit email verification, with ordinary user permissions. The frontend and API use the same domain-validation policy. For the current production email restriction and the AWS action needed to remove it, see [NEP sign-in and SES production access](deploy/amplify-postgresql/NEP-SIGN-IN.md).
+
 Optional fictitious demo data can be added with `npm run seed:demo` before use; it refuses a nonempty gallery or production. It is never run automatically. PostgreSQL must be running for all server commands; there is no SQLite fallback.
 
 ## Current interface and behaviour
@@ -263,4 +265,4 @@ The suite covers the full API workflow, development authentication isolation, vo
 
 The optional Playwright browser suite requires a running loopback PostgreSQL server and uses a separate schema. Install Chromium with `npx playwright install chromium`, then run `npm run test:e2e`. See its configuration for executable overrides. No tests should target production event tables.
 
-Current checks: **36 tests passed against native PostgreSQL** using isolated test schemas, including API, migration/import, parallel-request and frontend response/proxy checks. The frontend build passed. Public Amplify routing and SES delivery still require testing against your deployed services. The earlier WASM checks were preliminary; native validation is now complete.
+Current checks: **46 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.

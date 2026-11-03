@@ -1,0 +1,57 @@
+README.md
+  s_1637736c36f889::t_2071beeee0f3fd 275,282,292-303
+deploy/amplify-postgresql/NEP-SIGN-IN.md
+  s_1637736c36f889::t_ba88b4b77217fa 1-2
+deploy/amplify-postgresql/create-schema.sql
+  s_1637736c36f889::t_565d5583418db0 1-2,98-99,103
+deploy/autoscaling/README.md
+  s_1637736c36f889::t_7666c452d26fa2 9,13,69,104,118-128
+deploy/autoscaling/deployment.json
+  s_1637736c36f889::t_41cdebd59fc90c 9,20-21,25-26
+server/index.js
+  s_1637736c36f889::t_7b7c52f7879488 1,161,333-335,422-433,439,447-456,479-501,506,521
+server/migrate.js
+  s_1637736c36f889::t_8da6039c47260b 6
+server/migrations/003-submission-limit.sql
+  s_1637736c36f889::t_78f620a7a5f224 1
+server/sqlite-import.js
+  s_1637736c36f889::t_69a690893279f3 11,38,66
+shared/csv.js
+  s_1637736c36f889::t_d3a7f8043012bc 1-10
+shared/email-policy.js
+  s_1637736c36f889::t_c55317b1b40e2d 8
+src/App.jsx
+  s_1637736c36f889::t_ff9c1802ca82be 23,26,41,46,53-54,64-66,68,130,133
+src/SubmissionControls.jsx
+  s_1637736c36f889::t_7d5d878bd3ef95 6,8,14
+src/styles.css
+  s_1637736c36f889::t_87bfcff9915a37 79-84
+tests/api.test.js
+  s_1637736c36f889::t_2b81b4d47f8ba2 6,26,28,31,117-168,195,198-200
+tests/concurrency.test.js
+  s_1637736c36f889::t_2ab98789e2bd92 110-118
+tests/csv.test.js
+  s_1637736c36f889::t_b7e7ef9e217137 1-11
+tests/email-policy.test.js
+  s_1637736c36f889::t_3a3e12b69ca162 6,13
+tests/postgres.test.js
+  s_1637736c36f889::t_6cf8d203150a37 37,39
+tests/scaling.test.js
+  s_1637736c36f889::t_41d5665074aa32 55-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7b492b4fc4dfb4907d1baf568bb075c5590f1eb3",
+  "prompts": {},
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

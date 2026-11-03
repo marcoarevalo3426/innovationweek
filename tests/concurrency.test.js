@@ -75,3 +75,20 @@ test('rolled-back PostgreSQL changes do not append successful audit file events'
   assert.equal(Number((await database.pool.query('SELECT COUNT(*) AS n FROM audit')).rows[0].n),0);
   assert.ok(!existsSync(join(dir,'audit.jsonl'))||!readFileSync(join(dir,'audit.jsonl'),'utf8').includes('should.not.commit'));
 });
+
+
+test('nodes returning after a log clear rebuild their diagnostic copy from the shared clear boundary',async t=>{
+  const database=await testDatabase(),dir=mkdtempSync(join(tmpdir(),'nep-audit-clear-'));
+  t.after(async()=>{await database.cleanup();rmSync(dir,{recursive:true,force:true});});
+  async function node(n,code){
+    const child=spawn(process.execPath,['--input-type=module','-e',`import {audit,db} from './server/db.js';${code};await db.close();`],{env:{...database.env,NODE_ENV:'test',DATA_DIR:join(dir,String(n))},stdio:['ignore','pipe','pipe']});
+    let stderr='';child.stderr.on('data',d=>stderr+=d);const [status]=await once(child,'exit');assert.equal(status,0,stderr);
+  }
+  await node(0,"await audit('real@nepgroup.com','before.clear')");await node(1,"await audit('real@nepgroup.com','before.clear')");
+  await database.pool.query('DELETE FROM audit');
+  await database.pool.query("INSERT INTO audit(at,actor,action,details) VALUES('now','admin@nepgroup.com','admin.audit_cleared','{}'),('later','real@nepgroup.com','after.clear','{}')");
+  for(const n of [0,1]){
+    await node(n,"await audit(' NEP.MONITOR.SYNTHETIC@NEPGROUP.COM ','ignored.monitor')");
+    const contents=readFileSync(join(dir,String(n),'audit.jsonl'),'utf8');assert.ok(!contents.includes('before.clear'));assert.ok(!contents.includes('ignored.monitor'));assert.ok(contents.includes('admin.audit_cleared'));assert.ok(contents.includes('after.clear'));
+  }
+});

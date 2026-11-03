@@ -272,7 +272,7 @@ The suite covers the full API workflow, development authentication isolation, vo
 
 The optional Playwright browser suite requires a running loopback PostgreSQL server and uses a separate schema. Install Chromium with `npx playwright install chromium`, then run `npm run test:e2e`. See its configuration for executable overrides. No tests should target production event tables.
 
-Current checks: **52 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.
+Current checks: **56 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.
 
 
 ### Editable footer link
@@ -280,3 +280,13 @@ Current checks: **52 tests passed against native PostgreSQL** using isolated tes
 In **Admin → Footer link**, change the footer message, clickable text, and full HTTP/HTTPS URL, then choose **Save settings**. The default is “For more information, Click here” pointing to the NEP Confluence guide. The link opens in a new tab. Footer spacing is 100px on desktop, 60px on tablet (up to 1100px), and 40px on mobile (up to 600px).
 
 This release uses PostgreSQL schema version **2**. Existing installations must run `npm run db:migrate` as the database migration owner before starting the new API. Migration `002-footer-link.sql` only adds footer settings and preserves event data. The runtime role continues to use its existing settings-table permissions.
+
+
+### Admin activity and participation
+
+- **Admin → Activity log → Clear logs** opens a confirmation. Confirming deletes the shared activity history, retains a new `admin.audit_cleared` entry identifying the administrator, and leaves accounts, ideas, votes and likes unchanged. Export first if a copy is needed. The per-node diagnostic log copies synchronize to the clear boundary within 30 seconds, or at next startup for offline nodes. This does not purge independent backups or infrastructure logs.
+- Actions by `nep.monitor.synthetic@nepgroup.com` are skipped before audit insertion. Legacy entries for that actor are excluded from the activity view and export; the actor is also excluded from participation reports.
+- **Admin → Participation** lists users with at least one vote or like. Current-round vote totals are the default. Choose **All rounds** to count distinct ideas across stored voting rounds. Likes count currently liked ideas. Search by name or email, or refresh the table.
+- Vote confirmation keeps its close X, a 30px “Your vote is in!” heading and the main check graphic. The decorative side icons and “Keep exploring” button are removed.
+
+No database migration is required for this update; the schema remains version 2. Audit clearing is never performed automatically during deployment.

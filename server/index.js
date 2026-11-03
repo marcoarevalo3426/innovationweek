@@ -11,7 +11,7 @@ import nodemailer from 'nodemailer';
 import { randomInt, randomBytes, randomUUID, createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { db, pool, dataDir, get, all, run, audit, transaction, settings, votingState, submissionState } from './db.js';
+import { db, pool, dataDir, get, all, run, audit, syncAuditFile, SYNTHETIC_ACTOR, transaction, settings, votingState, submissionState } from './db.js';
 import { isLocalAuthEnabled } from './auth-mode.js';
 import { signInEmail } from './sign-in-email.js';
 import { createImageStorage } from './image-storage.js';
@@ -417,6 +417,22 @@ app.post('/api/ideas/:id/vote', async (req, res) => {
   });
 });
 app.use('/api/admin', admin);
+app.get('/api/admin/participation', async (req, res) => {
+  const scope = req.query.scope || 'current';
+  if (!['current', 'all'].includes(scope)) throw error(400, 'Choose the current round or all rounds.');
+  const round = (await settings()).round;
+  // Aggregate independently so joining likes and votes never multiplies counts.
+  const rows = await all(`WITH vote_counts AS (
+      SELECT user_id,COUNT(DISTINCT idea_id) AS voted FROM votes WHERE ($1::boolean OR round=$2) GROUP BY user_id
+    ), like_counts AS (
+      SELECT user_id,COUNT(DISTINCT idea_id) AS liked FROM likes GROUP BY user_id
+    ) SELECT u.id,u.email,COALESCE(v.voted,0) AS voted,COALESCE(l.liked,0) AS liked
+      FROM users u LEFT JOIN vote_counts v ON v.user_id=u.id LEFT JOIN like_counts l ON l.user_id=u.id
+      WHERE LOWER(BTRIM(u.email)) <> $3 AND (COALESCE(v.voted,0)>0 OR COALESCE(l.liked,0)>0)
+      ORDER BY LOWER(u.email),u.id`, scope === 'all', round, SYNTHETIC_ACTOR);
+  await audit(req.user.email, 'admin.participation_viewed', {scope,round});
+  res.json({rows,round,scope});
+});
 app.get('/api/admin/users', async (req, res) => {
   await audit(req.user.email, 'admin.users_viewed');
   res.json(await all("SELECT * FROM users ORDER BY email"));
@@ -487,6 +503,16 @@ app.post('/api/admin/reset-votes', async (req, res) => {
     ok: true
   });
 });
+app.delete('/api/admin/audit', async (req, res) => {
+  if (req.body?.confirmed !== true) throw error(400, 'Confirm before clearing activity logs.');
+  const cleared = await transaction(async () => {
+    const result = await run('DELETE FROM audit');
+    await audit(req.user.email, 'admin.audit_cleared', {cleared:result.rowCount});
+    return result.rowCount;
+  });
+  await syncAuditFile();
+  res.json({ok:true,cleared});
+});
 app.get('/api/admin/audit', async (req, res) => {
   await audit(req.user.email, req.query.download ? 'admin.audit_exported' : 'admin.audit_viewed');
   if (req.query.download) {
@@ -494,7 +520,7 @@ app.get('/api/admin/audit', async (req, res) => {
     res.attachment('innovation-week-audit.jsonl').type('application/x-ndjson');
     let after = 0;
     while (after < limit && !res.destroyed) {
-      const rows = await all("SELECT * FROM audit WHERE id>$1 AND id<=$2 ORDER BY id LIMIT 500", after, limit);
+      const rows = await all("SELECT * FROM audit WHERE id>$1 AND id<=$2 AND LOWER(BTRIM(actor)) <> $3 ORDER BY id LIMIT 500", after, limit, SYNTHETIC_ACTOR);
       if (!rows.length) break;
       for (const row of rows) {
         if (!res.write(JSON.stringify({
@@ -519,8 +545,8 @@ app.get('/api/admin/audit', async (req, res) => {
   } else {
     const offset = Math.max(0, Math.min(2147483647, Math.trunc(Number(req.query.offset) || 0)));
     res.json({
-      rows: await all("SELECT * FROM audit ORDER BY id DESC LIMIT 50 OFFSET $1", offset),
-      total: (await get("SELECT COUNT(*) AS n FROM audit")).n
+      rows: await all("SELECT * FROM audit WHERE LOWER(BTRIM(actor)) <> $2 ORDER BY id DESC LIMIT 50 OFFSET $1", offset, SYNTHETIC_ACTOR),
+      total: (await get("SELECT COUNT(*) AS n FROM audit WHERE LOWER(BTRIM(actor)) <> $1", SYNTHETIC_ACTOR)).n
     });
   }
 });

@@ -114,5 +114,47 @@ test('Full local API workflow and security rules',async t=>{
    assert.equal((await patch({mode:'scheduled',starts_at:new Date(Date.now()+86400000).toISOString(),ends_at:new Date(Date.now()+172800000).toISOString()})).status,200);
    assert.equal((await request('/ideas',{client:'admin'})).data.settings.voting_started_at,null);
  });
+ await t.test('monitor actions are not audited and legacy monitor rows are excluded from view/export',async()=>{
+   await login('nep.monitor.synthetic@nepgroup.com','monitor');
+   await request('/ideas/'+third.id,{client:'monitor'});
+   await request(`/ideas/${third.id}/like`,{client:'monitor',method:'POST'});
+   assert.equal((await database.pool.query("SELECT COUNT(*) AS n FROM audit WHERE LOWER(BTRIM(actor))='nep.monitor.synthetic@nepgroup.com'")).rows[0].n,0);
+   await database.pool.query("INSERT INTO audit(at,actor,action,details) VALUES('now',' NEP.MONITOR.SYNTHETIC@NEPGROUP.COM ','legacy.monitor','{}')");
+   const logs=(await request('/admin/audit',{client:'admin'})).data;
+   assert.ok(!logs.rows.some(r=>r.actor.trim().toLowerCase()==='nep.monitor.synthetic@nepgroup.com'));
+   const exported=await request('/admin/audit?download=1',{client:'admin'});
+   assert.ok(!exported.data.toLowerCase().includes('nep.monitor.synthetic@nepgroup.com'));
+ });
+ await t.test('participation is admin-only and counts distinct ideas independently by current or all rounds',async()=>{
+   const participant=await login('report.person@nepgroup.com','report');
+   const ids=(await database.pool.query('SELECT id FROM ideas ORDER BY id LIMIT 3')).rows.map(r=>r.id);assert.equal(ids.length,3);
+   const round=(await database.pool.query('SELECT round FROM settings')).rows[0].round;
+   for(const id of ids.slice(0,2)){
+     await database.pool.query('INSERT INTO likes(user_id,idea_id) VALUES($1,$2)',[participant.user.id,id]);
+     await database.pool.query('INSERT INTO votes(user_id,idea_id,round) VALUES($1,$2,$3)',[participant.user.id,id,round]);
+   }
+   for(const id of [ids[0],ids[2]]) await database.pool.query('INSERT INTO votes(user_id,idea_id,round) VALUES($1,$2,$3)',[participant.user.id,id,round-1]);
+   const monitor=(await database.pool.query("SELECT id FROM users WHERE email='nep.monitor.synthetic@nepgroup.com'")).rows[0];
+   await database.pool.query('INSERT INTO votes(user_id,idea_id,round) VALUES($1,$2,$3)',[monitor.id,ids[0],round]);
+   assert.equal((await request('/admin/participation',{client:'alice'})).status,403);
+   assert.equal((await request('/admin/participation?scope=invalid',{client:'admin'})).status,400);
+   const current=(await request('/admin/participation',{client:'admin'})).data;
+   assert.equal(current.round,round);assert.deepEqual(current.rows.find(r=>r.id===participant.user.id),{id:participant.user.id,email:'report.person@nepgroup.com',voted:2,liked:2});
+   assert.ok(!current.rows.some(r=>r.email==='nep.monitor.synthetic@nepgroup.com'||r.email==='new.colleague+ideas@nepgroup.com'));
+   const history=(await request('/admin/participation?scope=all',{client:'admin'})).data;
+   assert.equal(history.rows.find(r=>r.id===participant.user.id).voted,3);
+ });
+ await t.test('clearing logs requires admin and explicit confirmation and preserves all event data',async()=>{
+   const counts=async()=>{const result={};for(const table of ['users','ideas','likes','votes'])result[table]=(await database.pool.query(`SELECT COUNT(*) AS n FROM ${table}`)).rows[0].n;return result;};
+   const before=await counts();const oldCount=(await database.pool.query('SELECT COUNT(*) AS n FROM audit')).rows[0].n;
+   assert.equal((await request('/admin/audit',{client:'alice',method:'DELETE',body:{confirmed:true}})).status,403);
+   for(const body of [{},{confirmed:'true'}])assert.equal((await request('/admin/audit',{client:'admin',method:'DELETE',body})).status,400);
+   assert.equal((await database.pool.query('SELECT COUNT(*) AS n FROM audit')).rows[0].n,oldCount);
+   const cleared=await request('/admin/audit',{client:'admin',method:'DELETE',body:{confirmed:true}});
+   assert.equal(cleared.status,200);assert.equal(cleared.data.cleared,oldCount);
+   const rows=(await database.pool.query('SELECT * FROM audit')).rows;assert.equal(rows.length,1);assert.equal(rows[0].action,'admin.audit_cleared');assert.equal(rows[0].actor,'admin@nepgroup.com');
+   const copy=readFileSync(join(root,'audit.jsonl'),'utf8');assert.ok(copy.includes('admin.audit_cleared'));assert.ok(!copy.includes('vote.cast'));assert.ok(!copy.includes('legacy.monitor'));
+   assert.deepEqual(await counts(),before);
+ });
  await t.test('logout revokes the existing session token',async()=>{const token=clients.alice;assert.equal((await request('/auth/logout',{client:'alice',method:'POST'})).status,200);clients.alice=token;assert.equal((await request('/ideas',{client:'alice'})).status,401);});
 });

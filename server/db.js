@@ -1,6 +1,6 @@
 import { recordDbError } from './monitor-telemetry.mjs';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { mkdirSync, appendFileSync } from 'node:fs';
+import { mkdirSync, appendFileSync, writeFileSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createPool } from './pg-config.js';
 import { migrate, checkSchema } from './migrate.js';
@@ -44,7 +44,9 @@ export async function transaction(fn) {
   }
 }
 
+export const SYNTHETIC_ACTOR = 'nep.monitor.synthetic@nepgroup.com';
 export async function audit(actor, action, details = {}) {
+  if (typeof actor === 'string' && actor.trim().toLowerCase() === SYNTHETIC_ACTOR) return;
   if (!context.getStore()) return transaction(() => audit(actor, action, details));
   const at = new Date().toISOString();
   await run('INSERT INTO audit(at,actor,action,details) VALUES($1,$2,$3,$4)', at, actor, action, JSON.stringify(details));
@@ -56,4 +58,23 @@ export async function audit(actor, action, details = {}) {
 export const settings = () => get('SELECT * FROM settings WHERE id=1');
 export const votingState = async (s, now = Date.now()) => getVotingStatus(s || await settings(), now);
 export const submissionState = async (s, now = Date.now()) => getSubmissionStatus(s || await settings(), now);
-export const db = { close: () => pool.end() };
+// PostgreSQL is authoritative. Propagate confirmed clears to each node's local
+// diagnostic copy, including nodes that were offline when the clear happened.
+let lastAuditClearId = 0, auditSyncPromise;
+export function syncAuditFile() {
+  if (auditSyncPromise) return auditSyncPromise;
+  auditSyncPromise = transaction(async () => {
+    const marker = await get("SELECT id FROM audit WHERE action='admin.audit_cleared' ORDER BY id DESC LIMIT 1");
+    if (!marker || marker.id <= lastAuditClearId) return;
+    const rows = await all('SELECT at,actor,action,details FROM audit WHERE id >= $1 AND LOWER(BTRIM(actor)) <> $2 ORDER BY id', marker.id, SYNTHETIC_ACTOR);
+    const temporary = resolve(dataDir, 'audit.jsonl.clear.tmp');
+    writeFileSync(temporary, rows.map(row => JSON.stringify({...row, details: JSON.parse(row.details)}) + '\n').join(''), {mode:0o600});
+    renameSync(temporary, resolve(dataDir, 'audit.jsonl'));
+    lastAuditClearId = marker.id;
+  }).catch(error => console.error('Audit copy synchronization failed:', error.code || error.name)).finally(() => { auditSyncPromise = undefined; });
+  return auditSyncPromise;
+}
+await syncAuditFile();
+const auditSyncTimer = setInterval(() => syncAuditFile(), 30000);
+auditSyncTimer.unref();
+export const db = { close: () => { clearInterval(auditSyncTimer); return pool.end(); } };

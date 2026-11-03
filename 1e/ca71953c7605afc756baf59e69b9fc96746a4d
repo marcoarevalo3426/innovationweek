@@ -1,0 +1,49 @@
+README.md
+  s_1637736c36f889::t_ccecbb9f5c82b7 68,81,93,102,275,282,303-319
+deploy/amplify-postgresql/create-schema.sql
+  s_1637736c36f889::t_1901c57d7f67fa 1-2,100-105,110
+deploy/autoscaling/README.md
+  s_1637736c36f889::t_a5340fbcdbdfd8 129-139
+deploy/autoscaling/deployment.json
+  s_1637736c36f889::t_b1c22a71e17c92 9,20-21,25-28
+server/index.js
+  s_1637736c36f889::t_f0ebebae9eee35 1,260-261,393,509,522,527,530,558-566
+server/migrate.js
+  s_1637736c36f889::t_8a99897f6f420e 7
+server/migrations/004-like-schedule.sql
+  s_1637736c36f889::t_12a82e5f342695 1-5
+server/sqlite-import.js
+  s_1637736c36f889::t_7461a37efc3aaa 11,39-41,69
+shared/event-state.js
+  s_1637736c36f889::t_67eb753b7e4378 29-40
+src/App.jsx
+  s_1637736c36f889::t_6de3b0a7822787 4,7,41,49,68,70,119,132,135
+src/LikeControls.jsx
+  s_1637736c36f889::t_15db72a31b31f4 1-34
+src/styles.css
+  s_1637736c36f889::t_9f2193c63eec7a 85-92
+tests/api.test.js
+  s_1637736c36f889::t_f8357834e8df30 202-242
+tests/browser/workflow.spec.js
+  s_1637736c36f889::t_d64d9b2b1dc284 18,27
+tests/event-state.test.js
+  s_1637736c36f889::t_393b4dafcc1d8b 3,43-54
+tests/postgres.test.js
+  s_1637736c36f889::t_a59ce3af7a628e 114-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1eca71953c7605afc756baf59e69b9fc96746a4d",
+  "prompts": {},
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

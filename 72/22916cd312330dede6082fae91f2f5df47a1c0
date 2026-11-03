@@ -1,0 +1,43 @@
+tests/pg-iam.test.js
+  s_1637736c36f889::t_006190d99bc9af 1-54
+deploy/amplify-postgresql/ses-production-access-request.json
+  s_1637736c36f889::t_9929f2fe799d61 1-7
+shared/email-policy.js
+  s_1637736c36f889::t_d3bf987c092878 1-13
+server/index.js
+  s_1637736c36f889::t_d3bf987c092878 14,20,147-148,178,180,196
+README.md
+  s_1637736c36f889::t_d3bf987c092878 49-50
+  s_1637736c36f889::t_a0f5375d858d85 268
+deploy/amplify-postgresql/NEP-SIGN-IN.md
+  s_1637736c36f889::t_1528123de60254 25-26,46
+  s_1637736c36f889::t_9929f2fe799d61 1-24,27-45,47-61
+deploy/amplify-postgresql/CUSTOM-DOMAINS.md
+  s_1637736c36f889::t_c349122c4290a2 5-6,28,30,81
+  s_1637736c36f889::t_2b09dd5eec12f0 1-4,7-27,29,31-80,82-132
+tests/email-policy.test.js
+  s_1637736c36f889::t_d3bf987c092878 1-16
+src/App.jsx
+  s_1637736c36f889::t_28e4917f2f68f3 2,22,25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7222916cd312330dede6082fae91f2f5df47a1c0",
+  "prompts": {},
+  "humans": {
+    "h_fc43b80cbcd575": {
+      "author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

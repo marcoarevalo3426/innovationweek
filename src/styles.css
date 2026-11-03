@@ -80,5 +80,5 @@
 
 .table-sort { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 7px 0; font: inherit; text-transform: inherit; color: inherit; }
 .table-sort .ascending { transform: rotate(180deg); }
-.person-row > .person-actions { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
-@media (max-width: 600px) { .person-row > .person-actions { flex-basis: 100%; justify-content: flex-start; padding-left: 45px; } .person-row .person-actions .button { margin-left: 0; } }
+.person-row > .person-actions { flex: 0 1 auto; margin-left: auto; display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 600px) { .person-row > .person-actions { flex-basis: 100%; justify-content: flex-end; padding-left: 0; } .person-row .person-actions .button { margin-left: 0; } }

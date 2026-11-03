@@ -1,0 +1,27 @@
+src/App.jsx
+  s_1637736c36f889::t_dbeaeda7e500da 4,14,16,36,70,116,127
+src/VotingHero.jsx
+  s_1637736c36f889::t_697587b707488d 39
+src/events.css
+  s_1637736c36f889::t_a9cd91567f061f 2,4-5,8
+src/styles.css
+  s_1637736c36f889::t_f0c5e9dce2aef0 7,18,24-58
+tests/browser/workflow.spec.js
+  s_1637736c36f889::t_246376b3411ad5 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5b02a8f34787ea8dc3a65134af55ff18549787d4",
+  "prompts": {},
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

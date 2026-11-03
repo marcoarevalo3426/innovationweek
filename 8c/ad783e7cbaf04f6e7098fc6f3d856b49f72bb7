@@ -1,0 +1,27 @@
+README.md
+  s_1637736c36f889::t_f9b78efc6b003d 275
+deploy/autoscaling/README.md
+  s_1637736c36f889::t_f1a715f29c9788 9,13,69,105-117
+deploy/autoscaling/deployment.json
+  s_1637736c36f889::t_19a428cfce891a 9,20-23,28-30
+server/db.js
+  s_1637736c36f889::t_575a3346530059 52,54,64,70,72,74
+tests/concurrency.test.js
+  s_1637736c36f889::t_de4ad072dbfa11 95-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8cad783e7cbaf04f6e7098fc6f3d856b49f72bb7",
+  "prompts": {},
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

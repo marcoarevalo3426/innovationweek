@@ -1,0 +1,23 @@
+shared/footer-settings.js
+  s_1637736c36f889::t_9f9d04ccc72de8 1-13
+src/App.jsx
+  s_1637736c36f889::t_2c446dc2eec50e 1,54,58,63,128
+src/styles.css
+  s_1637736c36f889::t_ecf8270df1d69e 59-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1d3924f7bd1c1c0c2c6ec49074678a09bc51777f",
+  "prompts": {},
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

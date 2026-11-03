@@ -56,3 +56,17 @@
   .vote-celebration-content > .vote-celebration-message, .votes-remaining { font-size: 16px; }
   .vote-celebration-content > .button { width: 100%; }
 }
+
+
+/* Footer information and space after page content. */
+.main-footer { margin-top: 100px; flex-wrap: wrap; }
+.main-footer .footer-info { margin: 0 0 0 auto; max-width: 100%; text-align: right; color: #716a78; font-size: 12px; overflow-wrap: anywhere; }
+.footer-info a { color: #6036a4; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+.footer-info a:hover { color: #4923af; }
+.footer-settings .field { margin-top: 24px; max-width: 720px; }
+.footer-url-help { font-size: 12px; color: #716a78; margin-top: 8px; }
+@media (max-width: 1100px) { .main-footer { margin-top: 60px; } }
+@media (max-width: 600px) {
+  .main-footer { margin-top: 40px; }
+  .main-footer .footer-info { flex-basis: 100%; margin-left: 0; }
+}

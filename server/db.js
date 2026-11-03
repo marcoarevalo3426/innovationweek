@@ -49,8 +49,9 @@ export async function audit(actor, action, details = {}) {
   if (typeof actor === 'string' && actor.trim().toLowerCase() === SYNTHETIC_ACTOR) return;
   if (!context.getStore()) return transaction(() => audit(actor, action, details));
   const at = new Date().toISOString();
-  await run('INSERT INTO audit(at,actor,action,details) VALUES($1,$2,$3,$4)', at, actor, action, JSON.stringify(details));
+  const inserted = await get('INSERT INTO audit(at,actor,action,details) VALUES($1,$2,$3,$4) RETURNING id', at, actor, action, JSON.stringify(details));
   context.getStore().afterCommit.push(() => {
+    if (inserted.id <= auditFileSnapshotId) return;
     try { appendFileSync(resolve(dataDir, 'audit.jsonl'), JSON.stringify({ at, actor, action, details }) + '\n', { mode: 0o600 }); }
     catch (error) { console.error('Audit file write failed:', error.code); }
   });
@@ -60,16 +61,17 @@ export const votingState = async (s, now = Date.now()) => getVotingStatus(s || a
 export const submissionState = async (s, now = Date.now()) => getSubmissionStatus(s || await settings(), now);
 // PostgreSQL is authoritative. Propagate confirmed clears to each node's local
 // diagnostic copy, including nodes that were offline when the clear happened.
-let lastAuditClearId = 0, auditSyncPromise;
+let lastAuditClearId = 0, auditFileSnapshotId = 0, auditSyncPromise;
 export function syncAuditFile() {
   if (auditSyncPromise) return auditSyncPromise;
   auditSyncPromise = transaction(async () => {
     const marker = await get("SELECT id FROM audit WHERE action='admin.audit_cleared' ORDER BY id DESC LIMIT 1");
     if (!marker || marker.id <= lastAuditClearId) return;
-    const rows = await all('SELECT at,actor,action,details FROM audit WHERE id >= $1 AND LOWER(BTRIM(actor)) <> $2 ORDER BY id', marker.id, SYNTHETIC_ACTOR);
+    const rows = await all('SELECT id,at,actor,action,details FROM audit WHERE id >= $1 AND LOWER(BTRIM(actor)) <> $2 ORDER BY id', marker.id, SYNTHETIC_ACTOR);
     const temporary = resolve(dataDir, 'audit.jsonl.clear.tmp');
-    writeFileSync(temporary, rows.map(row => JSON.stringify({...row, details: JSON.parse(row.details)}) + '\n').join(''), {mode:0o600});
+    writeFileSync(temporary, rows.map(({id, ...row}) => JSON.stringify({...row, details: JSON.parse(row.details)}) + '\n').join(''), {mode:0o600});
     renameSync(temporary, resolve(dataDir, 'audit.jsonl'));
+    auditFileSnapshotId = rows.at(-1)?.id || marker.id;
     lastAuditClearId = marker.id;
   }).catch(error => console.error('Audit copy synchronization failed:', error.code || error.name)).finally(() => { auditSyncPromise = undefined; });
   return auditSyncPromise;

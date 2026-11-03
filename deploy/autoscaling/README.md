@@ -6,11 +6,11 @@ Deployment status: **enabled in AWS on 3 November 2026**. The group was verified
 | --- | --- |
 | Region / account | `ap-southeast-2` / `375033595717` |
 | Auto Scaling group | `innovation-week-api-asg`, min/desired 1, max 4 |
-| Launch template | `innovation-week-api-fleet`, `lt-0caa430400247386c`, pinned version `2` |
+| Launch template | `innovation-week-api-fleet`, `lt-0caa430400247386c`, pinned version `4` |
 | Shared bucket | `nep-innovation-week-375033595717-ap-southeast-2`, private, SSE-S3 encryption, versioning, TLS required |
 | Configuration | SecureString `/innovation-week/production/env`, encrypted with the default SSM managed key |
 | Runtime identity | Existing `InnovationWeekApiRole`; shared database permission retained; bucket/prefix and parameter access scoped to this app |
-| Release | `releases/20261103-footer-v2/app.tgz`; SHA256 `47d8ec3f89f5d692795a92ade3e73d924984c538bf1d0de4921c7fd6ebef8325` |
+| Release | `releases/20261103-admin-activity-v4/app.tgz`; SHA256 `d6e37041e40ca1bea4b919cc48a56e2d31ef83cb0193dc72ebc048ebee2ea14e` |
 | Original instance | `i-0519323d1f9f9d3ac`, attached and protected from routine scale-in during this initial deployment |
 | Replacement test instance | `i-02b89bbfb61c95abc`, successfully booted, validated, then terminated by the scale-in test |
 
@@ -66,7 +66,7 @@ The existing database-scoped transaction lock still serializes mutations to pres
 
 ## Checks completed so far
 
-52 native PostgreSQL/unit tests passed, including two simultaneous API processes sharing verification codes, sessions, rate limits and ideas; atomic counter contention/reset; S3 adapter sharing and error behavior; and compressed private idea responses. The frontend production build passed. Live checks verified all four migrated images against local originals, S3 read/write/delete using the EC2 role, a healthy staged API, a fresh replacement boot, shared image/counter access, configuration equality with Parameter Store, SSM commands, two healthy load-balancer targets across two zones, and scale-in to one.
+57 native PostgreSQL/unit tests passed, including two simultaneous API processes sharing verification codes, sessions, rate limits and ideas; atomic counter contention/reset; S3 adapter sharing and error behavior; and compressed private idea responses. The frontend production build passed. Live checks verified all four migrated images against local originals, S3 read/write/delete using the EC2 role, a healthy staged API, a fresh replacement boot, shared image/counter access, configuration equality with Parameter Store, SSM commands, two healthy load-balancer targets across two zones, and scale-in to one.
 
 The scale-in test changed desired capacity explicitly. The CPU/request policies and their alarms are enabled, but no high-load stress test against production event data was performed. Thresholds therefore remain starting values, not a measured concurrent-user guarantee.
 
@@ -102,3 +102,16 @@ Launch-template version **2** uses release `20261103-footer-v2` and schema **2**
 The original instance was put in standby while the new instance served traffic, updated through SSM, validated, and returned to service. Both nodes passed checks for matching API source, schema version, footer defaults, shared image/rate-limit configuration, and database readiness. The group was then returned to desired capacity one with its original instance protected.
 
 **Schema-aware rollback:** after migration 2, the original version-1 release fails its strict version-1 startup check. A rollback to older API code must retain the version-2 `server/migrate.js` and `server/migrations/002-footer-link.sql`, or use a compatible release. The automatic server-local rollback procedure does this. Do not remove the new columns or downgrade the schema to roll back a display feature. The pre-update source backup is `/var/backups/innovation-week-footer/20261103T062408Z` on the original server; it contains no environment credentials.
+
+
+## Admin activity and participation release — 3 November 2026
+
+Launch-template version **4** uses release `20261103-admin-activity-v4`; the PostgreSQL schema remains **2**. No migration, permission expansion, production log clearing, or event-data reset is part of deployment.
+
+Admin → Activity log → Clear logs requires confirmation and deletes only the shared audit history. A fresh `admin.audit_cleared` record identifies the administrator. Local diagnostic copies synchronize to that boundary within 30 seconds; offline nodes do so on startup. Delayed acknowledgements from older transactions cannot append pre-clear records after a clear snapshot. Independent backups and infrastructure logs are outside this application action.
+
+The synthetic monitor email is skipped before recording new audit actions. Legacy rows for that actor are hidden in the activity view and export. Participation is admin-only, excludes the monitor, and independently counts distinct voted and liked ideas to avoid join multiplication. Current-round votes are the default; All rounds counts distinct ideas across stored rounds. Likes show current selections.
+
+57 tests cover authorization, explicit confirmation, unchanged accounts/ideas/votes/likes, monitor filtering, correct participation totals, cross-node copy cleanup, and a deliberately delayed commit acknowledgement during a clear. The production clear endpoint is not invoked as a deployment test. Use the original instance's standby/drain procedure while a validated replacement serves requests for in-place updates; return desired capacity to one afterward.
+
+The final pre-update server backup is `/var/backups/innovation-week-admin-v4/20261103T111829Z` on the original instance. It preserves the schema-compatible previous API source; environment credentials remain in Parameter Store.

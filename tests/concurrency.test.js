@@ -92,3 +92,18 @@ test('nodes returning after a log clear rebuild their diagnostic copy from the s
     const contents=readFileSync(join(dir,String(n),'audit.jsonl'),'utf8');assert.ok(!contents.includes('before.clear'));assert.ok(!contents.includes('ignored.monitor'));assert.ok(contents.includes('admin.audit_cleared'));assert.ok(contents.includes('after.clear'));
   }
 });
+
+
+test('a delayed commit acknowledgement cannot append pre-clear history after a clear snapshot',async t=>{
+  const database=await testDatabase(),dir=mkdtempSync(join(tmpdir(),'nep-audit-race-'));
+  t.after(async()=>{await database.cleanup();rmSync(dir,{recursive:true,force:true});});
+  const code=`import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {join} from 'node:path';import {pool,transaction,run,audit,syncAuditFile,db} from './server/db.js';
+    let resume,seen;const gate=new Promise(r=>resume=r),committed=new Promise(r=>seen=r);let hold=true;
+    const connect=pool.connect.bind(pool);pool.connect=async()=>{const client=await connect();const query=client.query.bind(client);client.query=(...args)=>{const result=query(...args);if(args[0]==='COMMIT'&&hold){hold=false;return result.then(async value=>{seen();await gate;return value;});}return result;};return client;};
+    const writing=transaction(()=>audit('real@nepgroup.com','before.clear.delayed'));
+    await committed;
+    await transaction(async()=>{await run('DELETE FROM audit');await audit('admin@nepgroup.com','admin.audit_cleared');});
+    await syncAuditFile();resume();await writing;
+    const contents=readFileSync(join(process.env.DATA_DIR,'audit.jsonl'),'utf8');assert.ok(contents.includes('admin.audit_cleared'));assert.ok(!contents.includes('before.clear.delayed'));await db.close();`;
+  const child=spawn(process.execPath,['--input-type=module','-e',code],{env:{...database.env,NODE_ENV:'test',DATA_DIR:dir},stdio:['ignore','pipe','pipe']});let stderr='';child.stderr.on('data',d=>stderr+=d);const [status]=await once(child,'exit');assert.equal(status,0,stderr);
+});

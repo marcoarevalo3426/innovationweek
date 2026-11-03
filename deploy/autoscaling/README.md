@@ -6,11 +6,11 @@ Deployment status: **enabled in AWS on 3 November 2026**. The group was verified
 | --- | --- |
 | Region / account | `ap-southeast-2` / `375033595717` |
 | Auto Scaling group | `innovation-week-api-asg`, min/desired 1, max 4 |
-| Launch template | `innovation-week-api-fleet`, `lt-0caa430400247386c`, pinned version `4` |
+| Launch template | `innovation-week-api-fleet`, `lt-0caa430400247386c`, pinned version `5` |
 | Shared bucket | `nep-innovation-week-375033595717-ap-southeast-2`, private, SSE-S3 encryption, versioning, TLS required |
 | Configuration | SecureString `/innovation-week/production/env`, encrypted with the default SSM managed key |
 | Runtime identity | Existing `InnovationWeekApiRole`; shared database permission retained; bucket/prefix and parameter access scoped to this app |
-| Release | `releases/20261103-admin-activity-v4/app.tgz`; SHA256 `d6e37041e40ca1bea4b919cc48a56e2d31ef83cb0193dc72ebc048ebee2ea14e` |
+| Release | `releases/20261103-admin-management-v5/app.tgz`; SHA256 `27c831640fff87f3fe82c609fe59e4cefd92b344a390ea77f1ccca9b42e318ce` |
 | Original instance | `i-0519323d1f9f9d3ac`, attached and protected from routine scale-in during this initial deployment |
 | Replacement test instance | `i-02b89bbfb61c95abc`, successfully booted, validated, then terminated by the scale-in test |
 
@@ -66,7 +66,7 @@ The existing database-scoped transaction lock still serializes mutations to pres
 
 ## Checks completed so far
 
-57 native PostgreSQL/unit tests passed, including two simultaneous API processes sharing verification codes, sessions, rate limits and ideas; atomic counter contention/reset; S3 adapter sharing and error behavior; and compressed private idea responses. The frontend production build passed. Live checks verified all four migrated images against local originals, S3 read/write/delete using the EC2 role, a healthy staged API, a fresh replacement boot, shared image/counter access, configuration equality with Parameter Store, SSM commands, two healthy load-balancer targets across two zones, and scale-in to one.
+63 native PostgreSQL/unit tests passed, including two simultaneous API processes sharing verification codes, sessions, rate limits and ideas; atomic counter contention/reset; S3 adapter sharing and error behavior; and compressed private idea responses. The frontend production build passed. Live checks verified all four migrated images against local originals, S3 read/write/delete using the EC2 role, a healthy staged API, a fresh replacement boot, shared image/counter access, configuration equality with Parameter Store, SSM commands, two healthy load-balancer targets across two zones, and scale-in to one.
 
 The scale-in test changed desired capacity explicitly. The CPU/request policies and their alarms are enabled, but no high-load stress test against production event data was performed. Thresholds therefore remain starting values, not a measured concurrent-user guarantee.
 
@@ -101,7 +101,7 @@ Launch-template version **2** uses release `20261103-footer-v2` and schema **2**
 
 The original instance was put in standby while the new instance served traffic, updated through SSM, validated, and returned to service. Both nodes passed checks for matching API source, schema version, footer defaults, shared image/rate-limit configuration, and database readiness. The group was then returned to desired capacity one with its original instance protected.
 
-**Schema-aware rollback:** after migration 2, the original version-1 release fails its strict version-1 startup check. A rollback to older API code must retain the version-2 `server/migrate.js` and `server/migrations/002-footer-link.sql`, or use a compatible release. The automatic server-local rollback procedure does this. Do not remove the new columns or downgrade the schema to roll back a display feature. The pre-update source backup is `/var/backups/innovation-week-footer/20261103T062408Z` on the original server; it contains no environment credentials.
+**Schema-aware rollback:** after migration 3, older releases fail their strict startup checks. A rollback to earlier API code must retain the current `server/migrate.js` and both `002-footer-link.sql` and `003-submission-limit.sql`, or use a compatible release. Do not drop settings columns or downgrade the database to roll back a display feature. Pair an API rollback with a compatible frontend when older code lacks the latest routes.
 
 
 ## Admin activity and participation release — 3 November 2026
@@ -115,3 +115,14 @@ The synthetic monitor email is skipped before recording new audit actions. Legac
 57 tests cover authorization, explicit confirmation, unchanged accounts/ideas/votes/likes, monitor filtering, correct participation totals, cross-node copy cleanup, and a deliberately delayed commit acknowledgement during a clear. The production clear endpoint is not invoked as a deployment test. Use the original instance's standby/drain procedure while a validated replacement serves requests for in-place updates; return desired capacity to one afterward.
 
 The final pre-update server backup is `/var/backups/innovation-week-admin-v4/20261103T111829Z` on the original instance. It preserves the schema-compatible previous API source; environment credentials remain in Parameter Store.
+
+
+## Account management and CSV release — 3 November 2026
+
+Launch-template version **5** uses `20261103-admin-management-v5`; schema **3** adds `settings.max_ideas` with default 2 and range 1–100. The database owner runs migration 3 before the new API starts. It changes no accounts, ideas, votes or likes. Runtime grants on the existing settings table cover its new column.
+
+Administrators can confirm account deletion, including the account’s ideas, votes/likes, sessions and pending codes. Other users’ reactions to removed ideas are deleted with those ideas. The signed-in administrator and last administrator are protected. Eligible emails can create a new account afterward; deletion is not a ban. The operation is audited and image cleanup runs after the transaction commits. Deployment does not call this destructive endpoint.
+
+Manage ideas defaults to highest current-round votes, with Votes/Likes sort toggles and full-detail CSV export. Participation export respects the selected history scope and search. Exports require admin access and escape CSV text and spreadsheet formulas. The stricter sign-in policy accepts only letters and single separating periods before `@nepgroup.com`; the existing production bootstrap admin configuration passed a check for that policy without printing its addresses.
+
+63 tests passed, including CSV Unicode/multiline/quoting/formula handling, export authorization/order, dynamic submission caps under concurrent requests, account removal/file cleanup/session revocation, and simultaneous administrator deletion. Existing ideas remain when a cap is reduced. Admins retain their existing submission exemption; submission closure still blocks all new ideas.

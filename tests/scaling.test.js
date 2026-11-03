@@ -52,6 +52,6 @@ test('two API processes share email verification, sessions, limits and compresse
   const response=await fetch(nodes[1]+'/api/ideas',{headers:{Cookie:cookie,'Accept-Encoding':'gzip'}});
   assert.equal(response.headers.get('content-encoding'),'gzip');assert.match(response.headers.get('cache-control'),/private.*no-store/);
   assert.equal((await response.json()).ideas[0].title,'Shared idea');
-  for(let i=0;i<40;i++)assert.equal((await request(i%2,'/auth/verify',{email:'rate-check@nepgroup.com',code:'000000'})).status,400);
-  assert.equal((await request(1,'/auth/verify',{email:'rate-check@nepgroup.com',code:'000000'})).status,429);
+  for(let i=0;i<40;i++)assert.equal((await request(i%2,'/auth/verify',{email:'rate.check@nepgroup.com',code:'000000'})).status,400);
+  assert.equal((await request(1,'/auth/verify',{email:'rate.check@nepgroup.com',code:'000000'})).status,429);
 });

@@ -3,7 +3,7 @@ import { once } from 'node:events';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
@@ -23,12 +23,12 @@ test('Full local API workflow and security rules',async t=>{
  t.after(async()=>{if(server.exitCode===null){const stopped=once(server,'exit');server.kill('SIGTERM');await stopped;}await database.cleanup();rmSync(root,{recursive:true,force:true});});
  let alice,bob,admin;let first,second,third;
  await t.test('requires authentication and same-origin mutation header',async()=>{const health=await request('/health');assert.match(health.headers.get('cache-control'),/private.*no-store/);assert.match(health.headers.get('vary'),/Cookie/);assert.equal((await request('/ideas')).status,401);assert.equal((await request('/auth/request',{method:'POST',header:false,body:{email:'x@nepgroup.com'}})).status,403);});
- await t.test('validates exact NEP email domain',async()=>{for(const email of ['a@gmail.com','a@nepgroup.com.evil.com','a@sub.nepgroup.com','a b@nepgroup.com','a..b@nepgroup.com'])assert.equal((await request('/auth/request',{method:'POST',body:{email}})).status,400);});
+ await t.test('validates exact NEP email domain',async()=>{for(const email of ['a@gmail.com','a@nepgroup.com.evil.com','a@sub.nepgroup.com','a b@nepgroup.com','a..b@nepgroup.com','a1@nepgroup.com','a+b@nepgroup.com','a_b@nepgroup.com','a-b@nepgroup.com'])assert.equal((await request('/auth/request',{method:'POST',body:{email}})).status,400);});
  await t.test('a new colleague needs no invitation and gets an ordinary account only after verification',async()=>{
-   const email='new.colleague+ideas@nepgroup.com';
+   const email='new.colleague.ideas@nepgroup.com';
    const count=async()=>Number((await database.pool.query('SELECT count(*) FROM users WHERE email=$1',[email])).rows[0].count);
    assert.equal(await count(),0);
-   const sent=await request('/auth/request',{method:'POST',body:{email:'  NEW.COLLEAGUE+IDEAS@NEPGROUP.COM  '}});
+   const sent=await request('/auth/request',{method:'POST',body:{email:'  NEW.COLLEAGUE.IDEAS@NEPGROUP.COM  '}});
    assert.equal(sent.status,200);assert.match(sent.data.developmentCode,/^\d{6}$/);
    assert.equal(await count(),0);
    assert.equal((await request('/ideas',{client:'new-colleague'})).status,401);
@@ -114,6 +114,58 @@ test('Full local API workflow and security rules',async t=>{
    assert.equal((await patch({mode:'scheduled',starts_at:new Date(Date.now()+86400000).toISOString(),ends_at:new Date(Date.now()+172800000).toISOString()})).status,200);
    assert.equal((await request('/ideas',{client:'admin'})).data.settings.voting_started_at,null);
  });
+ await t.test('configured submission limits enforce increases and decreases without deleting existing ideas',async()=>{
+   await request('/admin/settings',{client:'admin',method:'PATCH',body:{submission_mode:'open',max_ideas:1}});
+   const colleague=await login('limit.person@nepgroup.com','limited');
+   const create=title=>request('/ideas',{client:'limited',method:'POST',body:form(ideaBody(title))});
+   const firstIdea=await create('Limited idea one');assert.equal(firstIdea.status,201);assert.equal((await create('Blocked at one')).status,409);
+   assert.equal((await request('/admin/settings',{client:'admin',method:'PATCH',body:{max_ideas:3}})).status,200);
+   const extra=await Promise.all([2,3,4].map(n=>create('Limited idea '+n)));assert.deepEqual(extra.map(r=>r.status).sort(),[201,201,409]);
+   for(const max_ideas of [0,101,'3'])assert.equal((await request('/admin/settings',{client:'admin',method:'PATCH',body:{max_ideas}})).status,400);
+   await request('/admin/settings',{client:'admin',method:'PATCH',body:{max_ideas:2}});
+   assert.equal((await database.pool.query('SELECT COUNT(*) AS n FROM ideas WHERE user_id=$1',[colleague.user.id])).rows[0].n,3);
+   assert.equal((await create('Blocked after reduction')).status,409);
+   assert.equal((await request('/ideas/'+firstIdea.data.id,{client:'limited',method:'PUT',body:form(ideaBody('Existing idea remains editable'))})).status,200);
+ });
+ await t.test('idea CSV is admin-only, follows vote/like sort order and preserves full idea text',async()=>{
+   const high=await request('/ideas',{client:'admin',method:'POST',body:form({...ideaBody('Export, high "quoted"'),problem:'Line one\nLine two'})});
+   const low=await request('/ideas',{client:'admin',method:'POST',body:form(ideaBody('Export low'))});assert.equal(high.status,201);assert.equal(low.status,201);
+   const round=(await database.pool.query('SELECT round FROM settings')).rows[0].round;
+   for(const user of [alice.user,bob.user])await database.pool.query('INSERT INTO votes VALUES($1,$2,$3)',[user.id,high.data.id,round]);
+   await database.pool.query('INSERT INTO votes VALUES($1,$2,$3)',[admin.user.id,low.data.id,round]);
+   for(const user of [alice.user,bob.user])await database.pool.query('INSERT INTO likes VALUES($1,$2)',[user.id,low.data.id]);
+   assert.equal((await request('/admin/ideas/export',{client:'alice'})).status,403);
+   assert.equal((await request('/admin/ideas/export?sort=invalid',{client:'admin'})).status,400);
+   const desc=await request('/admin/ideas/export',{client:'admin'});assert.equal(desc.status,200);assert.match(desc.headers.get('content-type'),/text\/csv/);assert.match(desc.headers.get('content-disposition'),/innovation-ideas.csv/);
+   const quoted='"Export, high ""quoted"""';assert.ok(desc.data.indexOf(quoted)<desc.data.indexOf('"Export low"'));assert.match(desc.data,/"Line one\r?\nLine two"/);
+   const asc=(await request('/admin/ideas/export?sort=votes&direction=asc',{client:'admin'})).data;assert.ok(asc.indexOf('"Export low"')<asc.indexOf(quoted));
+   const likes=(await request('/admin/ideas/export?sort=likes&direction=desc',{client:'admin'})).data;assert.ok(likes.indexOf('"Export low"')<likes.indexOf(quoted));
+ });
+ await t.test('account removal confirms ownership impact, revokes sessions and cleans related records/images',async()=>{
+   const removed=await login('removed.person@nepgroup.com','removed');
+   const image=await sharp({create:{width:2,height:2,channels:3,background:'#ffffff'}}).png().toBuffer();
+   const idea=await request('/ideas',{client:'removed',method:'POST',body:form(ideaBody('Remove with account'),image)});assert.equal(idea.status,201);
+   await database.pool.query('INSERT INTO likes VALUES($1,$2)',[removed.user.id,third.id]);
+   await database.pool.query('INSERT INTO likes VALUES($1,$2)',[admin.user.id,idea.data.id]);
+   const round=(await database.pool.query('SELECT round FROM settings')).rows[0].round;
+   await database.pool.query('INSERT INTO votes VALUES($1,$2,$3)',[removed.user.id,third.id,round]);
+   await database.pool.query('INSERT INTO votes VALUES($1,$2,$3)',[admin.user.id,idea.data.id,round]);
+   await request('/auth/request',{method:'POST',body:{email:removed.user.email}});
+   const url='/admin/users/'+removed.user.id;
+   assert.equal((await request(url,{client:'alice',method:'DELETE',body:{confirmed:true}})).status,403);
+   assert.equal((await request(url,{client:'admin',method:'DELETE',body:{}})).status,400);
+   assert.equal((await request('/admin/users/'+admin.user.id,{client:'admin',method:'DELETE',body:{confirmed:true}})).status,409);
+   assert.ok(existsSync(join(root,'uploads',idea.data.image)));
+   assert.equal((await request(url,{client:'admin',method:'DELETE',body:{confirmed:true}})).status,200);
+   for(const table of ['users','ideas','likes','votes','sessions']){
+     const column=table==='users'?'id':'user_id';assert.equal((await database.pool.query(`SELECT COUNT(*) AS n FROM ${table} WHERE ${column}=$1`,[removed.user.id])).rows[0].n,0);
+   }
+   for(const table of ['likes','votes'])assert.equal((await database.pool.query(`SELECT COUNT(*) AS n FROM ${table} WHERE idea_id=$1`,[idea.data.id])).rows[0].n,0);
+   assert.equal((await database.pool.query('SELECT COUNT(*) AS n FROM challenges WHERE email=$1',[removed.user.email])).rows[0].n,0);
+   assert.ok(!existsSync(join(root,'uploads',idea.data.image)));assert.equal((await request('/ideas',{client:'removed'})).status,401);
+   assert.ok((await request('/admin/users',{client:'admin'})).data.every(u=>u.id!==removed.user.id));
+   assert.ok((await request('/admin/audit',{client:'admin'})).data.rows.some(r=>r.action==='admin.account_deleted'));
+ });
  await t.test('monitor actions are not audited and legacy monitor rows are excluded from view/export',async()=>{
    await login('nep.monitor.synthetic@nepgroup.com','monitor');
    await request('/ideas/'+third.id,{client:'monitor'});
@@ -140,9 +192,12 @@ test('Full local API workflow and security rules',async t=>{
    assert.equal((await request('/admin/participation?scope=invalid',{client:'admin'})).status,400);
    const current=(await request('/admin/participation',{client:'admin'})).data;
    assert.equal(current.round,round);assert.deepEqual(current.rows.find(r=>r.id===participant.user.id),{id:participant.user.id,email:'report.person@nepgroup.com',voted:2,liked:2});
-   assert.ok(!current.rows.some(r=>r.email==='nep.monitor.synthetic@nepgroup.com'||r.email==='new.colleague+ideas@nepgroup.com'));
+   assert.ok(!current.rows.some(r=>r.email==='nep.monitor.synthetic@nepgroup.com'||r.email==='new.colleague.ideas@nepgroup.com'));
    const history=(await request('/admin/participation?scope=all',{client:'admin'})).data;
    assert.equal(history.rows.find(r=>r.id===participant.user.id).voted,3);
+   const csv=await request('/admin/participation?scope=all&download=1&search=report.person',{client:'admin'});assert.equal(csv.status,200);assert.match(csv.headers.get('content-type'),/text\/csv/);assert.ok(csv.data.includes('"Report Person","report.person@nepgroup.com","3","2"'));assert.ok(!csv.data.includes('nep.monitor.synthetic'));assert.ok(!csv.data.includes('bob@nepgroup.com'));
+   assert.equal((await request('/admin/participation?download=1',{client:'alice'})).status,403);
+
  });
  await t.test('clearing logs requires admin and explicit confirmation and preserves all event data',async()=>{
    const counts=async()=>{const result={};for(const table of ['users','ideas','likes','votes'])result[table]=(await database.pool.query(`SELECT COUNT(*) AS n FROM ${table}`)).rows[0].n;return result;};

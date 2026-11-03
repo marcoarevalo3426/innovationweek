@@ -34,9 +34,9 @@ function fixture(dir) {
 test('PostgreSQL schema migration is repeatable and preserves settings',async t=>{
   const database=await testDatabase();t.after(()=>database.cleanup());
   await migrate(database.pool);
-  await database.pool.query('UPDATE settings SET max_votes=7,round=4,show_welcome=0 WHERE id=1');
+  await database.pool.query('UPDATE settings SET max_votes=7,round=4,show_welcome=0,max_ideas=5 WHERE id=1');
   await migrate(database.pool);await checkSchema(database.pool);
-  assert.deepEqual((await database.pool.query('SELECT max_votes,round,show_welcome FROM settings')).rows[0],{max_votes:7,round:4,show_welcome:0});
+  assert.deepEqual((await database.pool.query('SELECT max_votes,round,show_welcome,max_ideas FROM settings')).rows[0],{max_votes:7,round:4,show_welcome:0,max_ideas:5});
 });
 
 test('SQLite import validates full rows, preserves history/files, drops sessions and refuses repetition',async t=>{

@@ -76,3 +76,9 @@
 .participation-controls .search-field { flex: 1; min-width: 240px; }
 .participation-note { color: #716a78; font-size: 12px; margin-bottom: 18px; }
 @media (max-width: 600px) { .participation-controls { align-items: stretch; flex-direction: column; } .participation-controls .search-field { min-width: 0; } .activity-actions { width: 100%; } }
+
+
+.table-sort { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 7px 0; font: inherit; text-transform: inherit; color: inherit; }
+.table-sort .ascending { transform: rotate(180deg); }
+.person-row > .person-actions { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 600px) { .person-row > .person-actions { flex-basis: 100%; justify-content: flex-start; padding-left: 45px; } .person-row .person-actions .button { margin-left: 0; } }

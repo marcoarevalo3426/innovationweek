@@ -1,3 +1,5 @@
+> Current address rule: letters and single separating periods only before `@nepgroup.com`; numbers and other punctuation are rejected. Production still verifies ownership by email code.
+
 # Allow every NEP colleague to sign in
 
 The app admits any valid address on the exact `@nepgroup.com` domain. A colleague does not need an invitation, a pre-created database account or inclusion in `ADMIN_EMAILS`. That setting controls initial administrator privileges only.

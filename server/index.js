@@ -1,3 +1,4 @@
+import { toCsv } from '../shared/csv.js';
 import { isFooterUrl } from '../shared/footer-settings.js';
 import { monitoringMiddleware } from './monitor-telemetry.mjs';
 import express from 'express';
@@ -157,7 +158,7 @@ app.use('/api/auth', (req, res, next) => {
 });
 app.post('/api/auth/request', async (req, res) => {
   const email = normalizeEmail(req.body.email);
-  if (!isNepEmail(email)) throw error(400, 'Use a valid @nepgroup.com email address.');
+  if (!isNepEmail(email)) throw error(400, 'Use only letters and single periods before @nepgroup.com.');
   const code = String(randomInt(0, 1000000)).padStart(6, '0');
   const now = Date.now();
   await transaction(async () => {
@@ -329,8 +330,9 @@ app.post('/api/ideas', requireSubmissionsOpen, upload, async (req, res) => {
   const image = await saveImage(req.file);
   try {
     const idea = await transaction(async () => {
-      if ((await submissionState()) !== 'open') throw error(409, 'Idea submissions are closed. You can still edit your existing ideas.');
-      if (!req.user.is_admin && (await get("SELECT COUNT(*) AS n FROM ideas WHERE user_id=$1", req.user.id)).n >= 2) throw error(409, 'You have reached the limit of 2 submitted ideas.');
+      const s = await settings();
+      if ((await submissionState(s)) !== 'open') throw error(409, 'Idea submissions are closed. You can still edit your existing ideas.');
+      if (!req.user.is_admin && (await get("SELECT COUNT(*) AS n FROM ideas WHERE user_id=$1", req.user.id)).n >= s.max_ideas) throw error(409, `You have reached the limit of ${s.max_ideas} submitted idea${s.max_ideas === 1 ? '' : 's'}.`);
       const id = randomUUID();
       const now = new Date().toISOString();
       await run("INSERT INTO ideas(id,user_id,title,problem,solution,skills,image,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", id, req.user.id, f.title, f.problem, f.solution, f.skills, image, now, now);
@@ -417,12 +419,24 @@ app.post('/api/ideas/:id/vote', async (req, res) => {
   });
 });
 app.use('/api/admin', admin);
+const displayPerson = email => email.split('@')[0].split(/[._-]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+app.get('/api/admin/ideas/export', async (req, res) => {
+  const sort = req.query.sort || 'votes', direction = req.query.direction || 'desc';
+  if (!['votes', 'likes'].includes(sort) || !['asc', 'desc'].includes(direction)) throw error(400, 'Choose a valid export sort order.');
+  const s = await settings();
+  const rows = await all(ideaQuery + " WHERE i.user_id <> 'nep-monitor-synthetic-v1' ORDER BY " + sort + ' ' + direction.toUpperCase() + ',i.title,i.id', s.round, req.user.id, req.user.id, s.round);
+  await audit(req.user.email, 'admin.ideas_exported', {round:s.round,sort,direction,count:rows.length});
+  res.attachment('innovation-ideas.csv').type('text/csv; charset=utf-8').send(toCsv(
+    ['Idea ID','Innovation title','Submitted by',`Votes (round ${s.round})`,'Likes','Problem you want to solve','Your idea for solving it','Skills of people you’d like on your team','Submitted at','Updated at','Image'],
+    rows.map(row => [row.id,row.title,row.author,row.votes,row.likes,row.problem,row.solution,row.skills,row.created_at,row.updated_at,row.image || ''])
+  ));
+});
 app.get('/api/admin/participation', async (req, res) => {
   const scope = req.query.scope || 'current';
   if (!['current', 'all'].includes(scope)) throw error(400, 'Choose the current round or all rounds.');
   const round = (await settings()).round;
   // Aggregate independently so joining likes and votes never multiplies counts.
-  const rows = await all(`WITH vote_counts AS (
+  let rows = await all(`WITH vote_counts AS (
       SELECT user_id,COUNT(DISTINCT idea_id) AS voted FROM votes WHERE ($1::boolean OR round=$2) GROUP BY user_id
     ), like_counts AS (
       SELECT user_id,COUNT(DISTINCT idea_id) AS liked FROM likes GROUP BY user_id
@@ -430,7 +444,16 @@ app.get('/api/admin/participation', async (req, res) => {
       FROM users u LEFT JOIN vote_counts v ON v.user_id=u.id LEFT JOIN like_counts l ON l.user_id=u.id
       WHERE LOWER(BTRIM(u.email)) <> $3 AND (COALESCE(v.voted,0)>0 OR COALESCE(l.liked,0)>0)
       ORDER BY LOWER(u.email),u.id`, scope === 'all', round, SYNTHETIC_ACTOR);
-  await audit(req.user.email, 'admin.participation_viewed', {scope,round});
+  if (req.query.search !== undefined) {
+    if (typeof req.query.search !== 'string' || req.query.search.length > 254) throw error(400, 'Participant search must be 254 characters or fewer.');
+    const search = req.query.search.toLowerCase();
+    rows = rows.filter(row => (displayPerson(row.email) + ' ' + row.email).toLowerCase().includes(search));
+  }
+  await audit(req.user.email, req.query.download ? 'admin.participation_exported' : 'admin.participation_viewed', {scope,round,count:rows.length});
+  if (req.query.download) return res.attachment('innovation-participation.csv').type('text/csv; charset=utf-8').send(toCsv(
+    ['Name','Email',scope === 'all' ? 'Ideas voted for (all rounds)' : `Ideas voted for (round ${round})`,'Ideas liked'],
+    rows.map(row => [displayPerson(row.email),row.email,row.voted,row.liked])
+  ));
   res.json({rows,round,scope});
 });
 app.get('/api/admin/users', async (req, res) => {
@@ -453,11 +476,34 @@ app.patch('/api/admin/users/:id', async (req, res) => {
     ok: true
   });
 });
+app.delete('/api/admin/users/:id', async (req, res) => {
+  if (req.body?.confirmed !== true) throw error(400, 'Confirm before deleting an account.');
+  const removedImages = await transaction(async () => {
+    const actor = await get('SELECT is_admin FROM users WHERE id=$1', req.user.id);
+    if (!actor?.is_admin) throw error(403, 'Administrator access required.');
+    const user = await get('SELECT * FROM users WHERE id=$1', req.params.id);
+    if (!user) throw error(404, 'User not found.');
+    if (user.id === req.user.id) throw error(409, 'You cannot delete your own account. Ask another administrator.');
+    if (user.is_admin && (await get('SELECT COUNT(*) AS n FROM users WHERE is_admin=1')).n <= 1) throw error(409, 'At least one administrator must remain.');
+    const owned = await all('SELECT image FROM ideas WHERE user_id=$1', user.id);
+    await run('DELETE FROM sessions WHERE user_id=$1', user.id);
+    await run('DELETE FROM challenges WHERE email=$1', user.email);
+    await run('DELETE FROM likes WHERE user_id=$1', user.id);
+    await run('DELETE FROM votes WHERE user_id=$1', user.id);
+    // Idea foreign keys also remove other users’ likes and votes on those ideas.
+    await run('DELETE FROM ideas WHERE user_id=$1', user.id);
+    await run('DELETE FROM users WHERE id=$1', user.id);
+    await audit(req.user.email, 'admin.account_deleted', {email:user.email,ideas:owned.length});
+    return owned.map(idea => idea.image).filter(Boolean);
+  });
+  await Promise.all(removedImages.map(removeImage));
+  res.json({ok:true});
+});
 app.patch('/api/admin/settings', async (req, res) => {
   await transaction(async () => {
     const old = await settings();
     const flags = ['show_timer', 'show_welcome', 'top_votes', 'top_likes', 'innovation_award', 'peoples_award'];
-    const allowed = ['mode', 'starts_at', 'ends_at', 'max_votes', ...flags, 'submission_mode', 'submission_ends_at', 'footer_text', 'footer_link_text', 'footer_url'];
+    const allowed = ['mode', 'starts_at', 'ends_at', 'max_votes', ...flags, 'submission_mode', 'submission_ends_at', 'footer_text', 'footer_link_text', 'footer_url', 'max_ideas'];
     if (Object.keys(req.body).some(k => !allowed.includes(k))) throw error(400, 'Unknown setting.');
     const s = {
       ...old,
@@ -472,6 +518,7 @@ app.patch('/api/admin/settings', async (req, res) => {
     if (!['open', 'closed', 'scheduled'].includes(s.mode)) throw error(400, 'Invalid voting mode.');
     if (!['open', 'closed', 'scheduled'].includes(s.submission_mode)) throw error(400, 'Invalid submission mode.');
     if (!Number.isInteger(s.max_votes) || s.max_votes < 1 || s.max_votes > 100) throw error(400, 'Maximum votes must be between 1 and 100.');
+    if (!Number.isInteger(s.max_ideas) || s.max_ideas < 1 || s.max_ideas > 100) throw error(400, 'Maximum ideas must be between 1 and 100.');
     for (const k of flags) if (![0, 1].includes(s[k])) throw error(400, 'Display settings must be 0 or 1.');
     for (const k of ['starts_at', 'ends_at', 'submission_ends_at']) if (s[k] !== null && (typeof s[k] !== 'string' || !Number.isFinite(Date.parse(s[k])))) throw error(400, 'Enter valid schedule dates.');
     if (s.mode === 'scheduled' && (!s.starts_at || !s.ends_at || Date.parse(s.ends_at) <= Date.parse(s.starts_at))) throw error(400, 'Voting end must be after the start.');

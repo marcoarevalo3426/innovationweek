@@ -107,3 +107,12 @@ test('a delayed commit acknowledgement cannot append pre-clear history after a c
     const contents=readFileSync(join(process.env.DATA_DIR,'audit.jsonl'),'utf8');assert.ok(contents.includes('admin.audit_cleared'));assert.ok(!contents.includes('before.clear.delayed'));await db.close();`;
   const child=spawn(process.execPath,['--input-type=module','-e',code],{env:{...database.env,NODE_ENV:'test',DATA_DIR:dir},stdio:['ignore','pipe','pipe']});let stderr='';child.stderr.on('data',d=>stderr+=d);const [status]=await once(child,'exit');assert.equal(status,0,stderr);
 });
+
+
+test('concurrent administrator account deletions retain a valid administrator',async t=>{
+ const {database,request,login}=await fixture(t);
+ const a=await login('admin@nepgroup.com'),b=await login('coadmin@nepgroup.com');
+ const result=await Promise.all([[a,b],[b,a]].map(([actor,target])=>request('/admin/users/'+target.data.user.id,{method:'DELETE',body:{confirmed:true},cookie:actor.cookie})));
+ assert.equal(result.filter(r=>r.status===200).length,1);assert.ok(result.every(r=>[200,401,403,409].includes(r.status)));
+ assert.equal((await database.pool.query('SELECT COUNT(*) AS n FROM users WHERE is_admin=1')).rows[0].n,1);
+});

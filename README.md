@@ -272,14 +272,14 @@ The suite covers the full API workflow, development authentication isolation, vo
 
 The optional Playwright browser suite requires a running loopback PostgreSQL server and uses a separate schema. Install Chromium with `npx playwright install chromium`, then run `npm run test:e2e`. See its configuration for executable overrides. No tests should target production event tables.
 
-Current checks: **57 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.
+Current checks: **63 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.
 
 
 ### Editable footer link
 
 In **Admin → Footer link**, change the footer message, clickable text, and full HTTP/HTTPS URL, then choose **Save settings**. The default is “For more information, Click here” pointing to the NEP Confluence guide. The link opens in a new tab. Footer spacing is 100px on desktop, 60px on tablet (up to 1100px), and 40px on mobile (up to 600px).
 
-This release uses PostgreSQL schema version **2**. Existing installations must run `npm run db:migrate` as the database migration owner before starting the new API. Migration `002-footer-link.sql` only adds footer settings and preserves event data. The runtime role continues to use its existing settings-table permissions.
+This release uses PostgreSQL schema version **3**. Existing installations must run `npm run db:migrate` as the database migration owner before starting the new API. Migration `002-footer-link.sql` only adds footer settings and preserves event data. The runtime role continues to use its existing settings-table permissions.
 
 
 ### Admin activity and participation
@@ -289,4 +289,15 @@ This release uses PostgreSQL schema version **2**. Existing installations must r
 - **Admin → Participation** lists users with at least one vote or like. Current-round vote totals are the default. Choose **All rounds** to count distinct ideas across stored voting rounds. Likes count currently liked ideas. Search by name or email, or refresh the table.
 - Vote confirmation keeps its close X, a 30px “Your vote is in!” heading and the main check graphic. The decorative side icons and “Keep exploring” button are removed.
 
-No database migration is required for this update; the schema remains version 2. Audit clearing is never performed automatically during deployment.
+The activity-log update used schema version 2; the current schema requirements are described below. Audit clearing is never performed automatically during deployment.
+
+
+### Account removal, exports and configurable submission limits
+
+- **Admin → Administrators → Delete account** opens a confirmation. Confirming permanently deletes the selected account, its ideas, its votes/likes, sessions and pending sign-in codes, and removes votes/likes placed on its ideas. Idea images are cleaned up. The current administrator and final remaining administrator are protected. Deletion is audited. An eligible NEP address can sign in again and create a new account; this action does not ban an email address.
+- **Admin → Manage ideas** defaults to descending vote count. Click **Votes** or **Likes** to toggle sorting. **Export CSV** downloads full idea details in the selected order.
+- **Admin → Participation → Export CSV**, beside Refresh table, exports the selected vote-history scope and participant search results.
+- **Admin → Idea submissions → Maximum ideas per person** changes the regular-user cap from 1 to 100; default **2**. Reducing it retains existing ideas and prevents additional submissions until the user is below the cap. Administrators retain their existing ability to manage additional ideas. Global submission closure still applies to everyone.
+- Sign-in accepts only ASCII letters and single separating periods before the exact `@nepgroup.com` domain. Numbers, other punctuation, consecutive periods, and leading/trailing periods are rejected. Letter case is normalized. Email-code verification remains required in production.
+
+Apply migration **003-submission-limit.sql** as the migration owner (`npm run db:migrate`) before starting this API. The database is schema version **3**. CSV exports require administrator access, include a UTF-8 BOM, quote multiline/Unicode text, and neutralize spreadsheet formulas in user-supplied cells. No production account removal is performed as a deployment test.

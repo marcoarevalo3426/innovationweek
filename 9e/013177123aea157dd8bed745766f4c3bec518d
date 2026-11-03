@@ -1,0 +1,48 @@
+tests/api.test.js
+  s_1637736c36f889::t_d3bf987c092878 27-44
+deploy/amplify-postgresql/ec2-database-connect.policy.example.json
+  s_1637736c36f889::t_60ed086aafa05a 1-11
+deploy/amplify-postgresql/backend-aurora-iam.env.example
+  s_1637736c36f889::t_60ed086aafa05a 1-28
+README.md
+  s_1637736c36f889::t_ba3f4e42029298 58
+server/db.js
+  s_6af79133d6f822::t_612f5176f495f2 1,21
+server/index.js
+  s_6af79133d6f822::t_ca740aefe48bb9 1,17,240
+server/monitor-telemetry.mjs
+  s_6af79133d6f822::t_94920cd435f850 1-26
+src/App.jsx
+  s_1637736c36f889::t_f845ffc7169828 25,28,108
+src/styles.css
+  s_1637736c36f889::t_ae0e4212c6d1f1 3,7,13,17-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9e013177123aea157dd8bed745766f4c3bec518d",
+  "prompts": {},
+  "humans": {
+    "h_fc43b80cbcd575": {
+      "author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    },
+    "s_6af79133d6f822": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a19f22-84ab-7ce2-b2e9-43f49e87fb3e",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

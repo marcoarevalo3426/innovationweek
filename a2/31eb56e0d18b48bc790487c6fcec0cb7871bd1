@@ -1,0 +1,104 @@
+deploy/amplify-postgresql/EMAIL-UPDATE.md
+  s_1637736c36f889::t_65d8c593ab5c8c 3-4
+  s_1637736c36f889::t_5e8645058fdefc 1-2,5-43
+server/image-storage.js
+  s_1637736c36f889::t_db99dcebb09a61 1-43
+deploy/autoscaling/rate-limit-store.sql
+  s_1637736c36f889::t_db99dcebb09a61 1-10
+server/pg-rate-limit-store.js
+  s_1637736c36f889::t_db99dcebb09a61 1-22
+deploy/amplify-postgresql/CUSTOM-DOMAINS.md
+  s_1637736c36f889::t_65d8c593ab5c8c 3-4,23
+scripts/test.js
+  s_1637736c36f889::t_f7ce8953c30e1a 20-21
+tests/sign-in-email.test.js
+  s_1637736c36f889::t_35c0a88d194ad5 14
+README.md
+  s_1637736c36f889::t_70933b9c0ad10e 73,120-122
+  s_1637736c36f889::t_e979a3a457ae8c 197-200,275-282
+scripts/update-sign-in-email.sh
+  s_1637736c36f889::t_935bf8e7b94ead 15,62-63,67
+  s_1637736c36f889::t_5e8645058fdefc 1-14,16-61,64-66,68-82
+deploy/autoscaling/bootstrap.sh
+  s_1637736c36f889::t_96c6945fe3cd70 1-71
+scripts/prepare-fleet-runtime.js
+  s_1637736c36f889::t_468a36a049e529 2-14,18-19
+  s_1637736c36f889::t_b2c2af84f14287 1,15-17
+.env.example
+  s_1637736c36f889::t_a3a5717c9654cf 22-27
+tests/image-storage.test.js
+  s_1637736c36f889::t_15dbff76e64b1d 1-33
+deploy/autoscaling/README.md
+  s_1637736c36f889::t_2f60a00bcaa80e 30,92-93
+  s_1637736c36f889::t_96c6945fe3cd70 1-2,18-20,23-29,31-53,55,57-68,94-95
+  s_1637736c36f889::t_65d8c593ab5c8c 21-22
+  s_1637736c36f889::t_a3a5717c9654cf 3-17,54,56,69-91
+  s_1637736c36f889::t_5e4727613ce9de 96-104
+server/sign-in-email.js
+  s_1637736c36f889::t_35c0a88d194ad5 34,41
+deploy/autoscaling/gallery-indexes.sql
+  s_1637736c36f889::t_2f60a00bcaa80e 1-4
+tests/scaling.test.js
+  s_1637736c36f889::t_15dbff76e64b1d 1-57
+deploy/amplify-postgresql/NEP-SIGN-IN.md
+  s_1637736c36f889::t_716b22c3569bce 12,14-16,23,27,61
+deploy/amplify-postgresql/PRODUCTION.md
+  s_1637736c36f889::t_a5f40190469484 1-2
+deploy/amplify-postgresql/create-schema.sql
+  s_1637736c36f889::t_ed966dd748115c 1-2,7,92-97,100
+deploy/autoscaling/deployment.json
+  s_1637736c36f889::t_b8fad167025d6e 1-29
+deploy/autoscaling/iam-runtime-policy.json
+  s_1637736c36f889::t_43528a1e7f6eee 1-82
+package-lock.json
+  s_1637736c36f889::t_897b7b49d44d95 11,14,2873-2893,3791-3807,3825-3841,4703-4705,6500-6520,7418-7434,7452-7468,8330-8332,17057-17115,17620-17629,20923-20931
+package.json
+  s_1637736c36f889::t_37e47c87cd1af0 22,25
+scripts/db-migrate.js
+  s_1637736c36f889::t_507d39748fe3dc 2,6
+server/index.js
+  s_1637736c36f889::t_33bb65aea93d95 1,5-6,12,14,17-18,49-53,72,110-111,121-122,253-254,273,275,300-302,306,308,311,315-321,345,363,368,382,444,450-455
+server/migrate.js
+  s_1637736c36f889::t_91c3c3a1b6671f 3-6
+server/migrations/002-footer-link.sql
+  s_1637736c36f889::t_7c9a3c47ea0cc7 1-5
+server/sqlite-import.js
+  s_1637736c36f889::t_ddfa264f63968d 1,11,38,65
+shared/footer-settings.js
+  s_1637736c36f889::t_6e208454e2f3c6 1-13
+src/App.jsx
+  s_1637736c36f889::t_f7b2b5fda5f7c4 1,5,15,17,37,54,58,63,71,89-108,117,128
+src/VotingHero.jsx
+  s_1637736c36f889::t_75d4c8f16553b3 39
+src/events.css
+  s_1637736c36f889::t_15525e88ba31e4 2,4-5,8
+src/styles.css
+  s_1637736c36f889::t_ad855241b6f786 7,18,24-72
+tests/api.test.js
+  s_1637736c36f889::t_362827f75826af 46-62
+tests/browser/workflow.spec.js
+  s_1637736c36f889::t_e113ceccd667d9 20
+tests/postgres.test.js
+  s_1637736c36f889::t_779353b45a0ecd 97-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a231eb56e0d18b48bc790487c6fcec0cb7871bd1",
+  "prompts": {},
+  "humans": {
+    "h_fc43b80cbcd575": {
+      "author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

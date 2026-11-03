@@ -1,3 +1,4 @@
+import { monitoringMiddleware } from './monitor-telemetry.mjs';
 import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -13,6 +14,7 @@ import { isLocalAuthEnabled } from './auth-mode.js';
 import { signInEmail } from './sign-in-email.js';
 import { isNepEmail, normalizeEmail } from '../shared/email-policy.js';
 const app = express();
+app.use(monitoringMiddleware);
 const production = process.env.NODE_ENV === 'production';
 const localAuth = isLocalAuthEnabled();
 const mailMode = process.env.MAIL_MODE || (production ? 'smtp' : 'console');
@@ -235,7 +237,7 @@ app.use('/api', auth);
 const ideaQuery = `SELECT i.*,u.email AS author,(SELECT COUNT(*) FROM likes l WHERE l.idea_id=i.id) AS likes,(SELECT COUNT(*) FROM votes v WHERE v.idea_id=i.id AND v.round=$1) AS votes,EXISTS(SELECT 1 FROM likes l WHERE l.idea_id=i.id AND l.user_id=$2) AS liked,EXISTS(SELECT 1 FROM votes v WHERE v.idea_id=i.id AND v.user_id=$3 AND v.round=$4) AS voted FROM ideas i JOIN users u ON i.user_id=u.id`;
 app.get('/api/ideas', async (req, res) => {
   const s = await settings();
-  const ideas = await all(ideaQuery + ' ORDER BY i.created_at DESC', s.round, req.user.id, req.user.id, s.round);
+  const ideas = await all(ideaQuery + " WHERE i.user_id <> 'nep-monitor-synthetic-v1' ORDER BY i.created_at DESC", s.round, req.user.id, req.user.id, s.round);
   res.json({
     ideas,
     settings: {

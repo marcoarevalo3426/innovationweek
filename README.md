@@ -55,6 +55,7 @@ Optional fictitious demo data can be added with `npm run seed:demo` before use; 
 | Area | Current behaviour |
 | --- | --- |
 | Local sign-in | Opens as Local Admin without an email form, code, email delivery or session cookie. Production continues to require email authentication. |
+| Login and welcome copy | All app footers read **NEP - 40 years of innovation**. Extra login and main-footer slogans/icons are removed, along with the welcome banner’s “ONE NEP. ENDLESS POSSIBILITIES.” label. |
 | Typography | All application text has a minimum font size of **12px**, including mobile layouts. |
 | Text and borders | Muted text previously using `#afa4b6`, `#9a92a2`, `#8a8591`, `#948b9e` or `#a28eaf` uses `#716a78`. Borders are slightly darker for clearer separation. |
 | Countdown subheader | The “Innovation week starts in” / “Innovation week ends in” text and remaining time are **14px** on desktop, tablet and mobile. The previous “Make your ideas count” text and its arrow icon have been removed. |

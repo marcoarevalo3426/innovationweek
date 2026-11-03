@@ -1,0 +1,11 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ConnectAsInnovationApp",
+      "Effect": "Allow",
+      "Action": "rds-db:connect",
+      "Resource": "arn:aws:rds-db:ap-southeast-2:375033595717:dbuser:REPLACE_WITH_CLUSTER_RESOURCE_ID/innovation_app"
+    }
+  ]
+}

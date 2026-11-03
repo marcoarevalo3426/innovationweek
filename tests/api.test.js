@@ -24,6 +24,24 @@ test('Full local API workflow and security rules',async t=>{
  let alice,bob,admin;let first,second,third;
  await t.test('requires authentication and same-origin mutation header',async()=>{const health=await request('/health');assert.match(health.headers.get('cache-control'),/private.*no-store/);assert.match(health.headers.get('vary'),/Cookie/);assert.equal((await request('/ideas')).status,401);assert.equal((await request('/auth/request',{method:'POST',header:false,body:{email:'x@nepgroup.com'}})).status,403);});
  await t.test('validates exact NEP email domain',async()=>{for(const email of ['a@gmail.com','a@nepgroup.com.evil.com','a@sub.nepgroup.com','a b@nepgroup.com','a..b@nepgroup.com'])assert.equal((await request('/auth/request',{method:'POST',body:{email}})).status,400);});
+ await t.test('a new colleague needs no invitation and gets an ordinary account only after verification',async()=>{
+   const email='new.colleague+ideas@nepgroup.com';
+   const count=async()=>Number((await database.pool.query('SELECT count(*) FROM users WHERE email=$1',[email])).rows[0].count);
+   assert.equal(await count(),0);
+   const sent=await request('/auth/request',{method:'POST',body:{email:'  NEW.COLLEAGUE+IDEAS@NEPGROUP.COM  '}});
+   assert.equal(sent.status,200);assert.match(sent.data.developmentCode,/^\d{6}$/);
+   assert.equal(await count(),0);
+   assert.equal((await request('/ideas',{client:'new-colleague'})).status,401);
+   const wrong=sent.data.developmentCode==='000000'?'111111':'000000';
+   assert.equal((await request('/auth/verify',{method:'POST',body:{email,code:wrong},client:'new-colleague'})).status,400);
+   assert.equal(await count(),0);
+   const verified=await request('/auth/verify',{method:'POST',body:{email,code:sent.data.developmentCode},client:'new-colleague'});
+   assert.equal(verified.status,200);assert.equal(verified.data.user.email,email);assert.equal(verified.data.user.is_admin,0);
+   assert.equal(await count(),1);
+   assert.equal((await request('/ideas',{client:'new-colleague'})).status,200);
+   assert.equal((await request('/admin/users',{client:'new-colleague'})).status,403);
+   assert.equal((await request('/auth/verify',{method:'POST',body:{email,code:sent.data.developmentCode}})).status,400);
+ });
  await t.test('verifies six-digit codes, assigns explicit admin and prevents replay',async()=>{alice=await login('alice@nepgroup.com','alice');bob=await login('bob@nepgroup.com','bob');admin=await login('admin@nepgroup.com','admin');assert.equal(alice.user.is_admin,0);assert.equal(admin.user.is_admin,1);assert.equal((await request('/auth/verify',{method:'POST',body:{email:'alice@nepgroup.com',code:alice.code}})).status,400);await request('/auth/request',{method:'POST',body:{email:'cooldown@nepgroup.com'}});assert.equal((await request('/auth/request',{method:'POST',body:{email:'cooldown@nepgroup.com'}})).status,429);});
  await t.test('locks an OTP after five wrong attempts',async()=>{const email='locked@nepgroup.com';const {data}=await request('/auth/request',{method:'POST',body:{email}});const wrong=data.developmentCode==='111111'?'222222':'111111';for(let n=0;n<5;n++)assert.equal((await request('/auth/verify',{method:'POST',body:{email,code:wrong}})).status,400);assert.equal((await request('/auth/verify',{method:'POST',body:{email,code:data.developmentCode}})).status,400);});
  await t.test('starts empty and enforces two-idea limit with validated image upload',async()=>{assert.equal((await request('/ideas',{client:'alice'})).data.ideas.length,0);const img=await sharp({create:{width:20,height:20,channels:3,background:'#663399'}}).png().toBuffer();let res=await request('/ideas',{client:'alice',method:'POST',body:form(ideaBody('Connected production'),img)});assert.equal(res.status,201);first=res.data;assert.match(first.image,/\.webp$/);assert.equal((await request('/images/'+first.image)).status,401);assert.equal((await request('/images/'+first.image,{client:'alice'})).status,200);res=await request('/ideas',{client:'alice',method:'POST',body:form(ideaBody('Greener broadcast'))});second=res.data;assert.equal(res.status,201);assert.equal((await request('/ideas',{client:'alice',method:'POST',body:form(ideaBody('Third idea'))})).status,409);third=(await request('/ideas',{client:'bob',method:'POST',body:form(ideaBody('Virtual collaboration'))})).data;});

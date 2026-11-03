@@ -1,3 +1,4 @@
+import { recordDbError } from './monitor-telemetry.mjs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { mkdirSync, appendFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -17,7 +18,7 @@ try {
   throw new Error('PostgreSQL startup failed. Check connection settings and run npm run db:migrate. No SQLite fallback was used.', { cause: error });
 }
 const context = new AsyncLocalStorage();
-export const query = (sql, args = []) => (context.getStore()?.client || pool).query(sql, args);
+export const query = (sql, args = []) => (context.getStore()?.client || pool).query(sql, args).catch(error => { if (/^\s*(INSERT|UPDATE|DELETE)/i.test(sql)) recordDbError(); throw error; });
 export const get = async (sql, ...args) => (await query(sql, args)).rows[0];
 export const all = async (sql, ...args) => (await query(sql, args)).rows;
 export const run = async (sql, ...args) => query(sql, args);

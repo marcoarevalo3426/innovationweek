@@ -1,3 +1,5 @@
+> Current managed deployment: the API now uses an EC2 Auto Scaling group and encrypted Parameter Store configuration. See [fleet operations](../autoscaling/README.md) before changing production configuration or deploying new API code. This guide remains the single-server installation reference.
+
 # Start production: existing Amplify frontend and Aurora PostgreSQL
 
 Your Amplify frontend and database exist. You confirmed that **no Node/Express API server exists yet**. Deploy that API before the frontend can sign users in or save ideas.

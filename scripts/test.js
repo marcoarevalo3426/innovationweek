@@ -17,7 +17,8 @@ async function finish(code) {
   if (directory) rmSync(directory,{recursive:true,force:true});
   process.exitCode = code;
 }
-const env = {...process.env, NODE_ENV:'test', INNOVATION_TEST_DATABASE:'true'};
+// Test uploads must never inherit a production S3 bucket from a developer environment.
+const env = {...process.env, NODE_ENV:'test', INNOVATION_TEST_DATABASE:'true', IMAGE_STORAGE:'local', RATE_LIMIT_STORE:'memory'};
 if (process.env.TEST_USE_LOCAL_POSTGRES !== 'true') {
   directory = mkdtempSync(join(tmpdir(),'nep-pg-tests-'));
   const listener = createServer();

@@ -1,17 +1,21 @@
+import { isFooterUrl } from '../shared/footer-settings.js';
 import { monitoringMiddleware } from './monitor-telemetry.mjs';
 import express from 'express';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
 import sharp from 'sharp';
 import nodemailer from 'nodemailer';
 import { randomInt, randomBytes, randomUUID, createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { db, dataDir, get, all, run, audit, transaction, settings, votingState, submissionState } from './db.js';
+import { db, pool, dataDir, get, all, run, audit, transaction, settings, votingState, submissionState } from './db.js';
 import { isLocalAuthEnabled } from './auth-mode.js';
 import { signInEmail } from './sign-in-email.js';
+import { createImageStorage } from './image-storage.js';
+import { PgRateLimitStore } from './pg-rate-limit-store.js';
 import { isNepEmail, normalizeEmail } from '../shared/email-policy.js';
 const app = express();
 app.use(monitoringMiddleware);
@@ -42,10 +46,11 @@ const transporter = !localAuth && mailMode === 'smtp' ? nodemailer.createTranspo
   socketTimeout: 10000
 }) : null;
 if (transporter && (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.MAIL_FROM)) throw Error('Set SMTP_HOST, SMTP_USER, SMTP_PASS and MAIL_FROM.');
-const uploadDir = resolve(dataDir, 'uploads');
-mkdirSync(uploadDir, {
-  recursive: true
-});
+const images = createImageStorage();
+const rateLimitStore = process.env.RATE_LIMIT_STORE || 'memory';
+if (!['memory', 'postgres'].includes(rateLimitStore)) throw Error('RATE_LIMIT_STORE must be memory or postgres.');
+if (rateLimitStore === 'postgres') await pool.query('SELECT 1 FROM api_rate_limits LIMIT 0');
+const sharedStore = prefix => rateLimitStore === 'postgres' ? { store: new PgRateLimitStore(pool, prefix) } : {};
 // Local requests use a stable development identity, without codes or sessions.
 const localEmail = 'local.admin@nepgroup.com';
 if (localAuth && !(await get("SELECT id FROM users WHERE email=$1", localEmail))) {
@@ -64,6 +69,7 @@ app.use(helmet({
 }));
 // Authentication and per-user API data must not be stored in a shared CDN
 // cache when the frontend proxies these routes through Amplify/CloudFront.
+app.use(compression());
 app.use('/api', (_req, res, next) => {
   res.set('Cache-Control', 'private, no-store, max-age=0');
   res.vary('Cookie');
@@ -101,6 +107,8 @@ const error = (status, message) => Object.assign(new Error(message), {
 const auth = (req, res, next) => req.user ? next() : next(error(401, 'Please sign in to continue.'));
 const admin = (req, res, next) => req.user?.is_admin ? next() : next(error(403, 'Administrator access required.'));
 const authLimit = rateLimit({
+  ...sharedStore('auth'),
+  keyGenerator: req => isNepEmail(req.body?.email) ? hash(normalizeEmail(req.body.email)) : ipKeyGenerator(req.ip),
   windowMs: 15 * 60 * 1000,
   limit: 40,
   standardHeaders: 'draft-8',
@@ -110,6 +118,8 @@ const authLimit = rateLimit({
   }
 });
 const mutationLimit = rateLimit({
+  ...sharedStore('mutations'),
+  keyGenerator: req => req.user?.id || ipKeyGenerator(req.ip),
   windowMs: 60 * 1000,
   limit: 120,
   standardHeaders: 'draft-8',
@@ -240,6 +250,8 @@ app.get('/api/ideas', async (req, res) => {
   const ideas = await all(ideaQuery + " WHERE i.user_id <> 'nep-monitor-synthetic-v1' ORDER BY i.created_at DESC", s.round, req.user.id, req.user.id, s.round);
   res.json({
     ideas,
+    user: req.user,
+    localAuth,
     settings: {
       ...s,
       status: await votingState(s),
@@ -258,9 +270,9 @@ app.get('/api/ideas/:id', async (req, res) => {
   });
   res.json(idea);
 });
-app.get('/api/images/:name', (req, res) => {
+app.get('/api/images/:name', async (req, res) => {
   if (!/^[a-f0-9-]+\.webp$/.test(req.params.name)) throw error(404, 'Image not found.');
-  res.set('Cache-Control', 'private, max-age=3600').sendFile(resolve(uploadDir, req.params.name));
+  res.set('Cache-Control', 'private, max-age=3600').type('image/webp').send(await images.get(req.params.name));
 });
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -285,31 +297,28 @@ async function ownIdea(req) {
   if (idea.user_id !== req.user.id && !req.user.is_admin) throw error(403, 'You can only manage your own ideas.');
   return idea;
 }
-function removeImage(name) {
-  if (name) try {
-    unlinkSync(resolve(uploadDir, name));
-  } catch {}
+async function removeImage(name) {
+  if (name) try { await images.remove(name); }
+  catch (error) { console.error('Image cleanup failed:', error.name || error.code); }
 }
 async function saveImage(file) {
   if (!file) return null;
+  let bytes;
   try {
-    const image = sharp(file.buffer, {
-      limitInputPixels: 25000000,
-      animated: false
-    });
+    const image = sharp(file.buffer, { limitInputPixels: 25000000, animated: false });
     const metadata = await image.metadata();
     if (!['jpeg', 'png', 'webp'].includes(metadata.format)) throw Error();
-    const name = randomUUID() + '.webp';
-    await image.rotate().resize(1600, 1200, {
-      fit: 'inside',
-      withoutEnlargement: true
-    }).webp({
-      quality: 85
-    }).toFile(resolve(uploadDir, name));
-    return name;
+    bytes = await image.rotate().resize(1600, 1200, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 85 }).toBuffer();
   } catch {
     throw error(400, 'Upload a valid JPG, PNG or WebP image, up to 2 MB.');
   }
+  const name = randomUUID() + '.webp';
+  try { await images.put(name, bytes); }
+  catch (cause) {
+    console.error('Image storage write failed:', cause.name || cause.code);
+    throw error(503, 'Image storage is temporarily unavailable. Please try again.');
+  }
+  return name;
 }
 async function requireSubmissionsOpen(req, res, next) {
   if ((await submissionState()) !== 'open') return next(error(409, 'Idea submissions are closed. You can still edit your existing ideas.'));
@@ -333,7 +342,7 @@ app.post('/api/ideas', requireSubmissionsOpen, upload, async (req, res) => {
     });
     res.status(201).json(idea);
   } catch (e) {
-    removeImage(image);
+    await removeImage(image);
     throw e;
   }
 });
@@ -351,12 +360,12 @@ app.put('/api/ideas/:id', upload, async (req, res) => {
       });
       return original;
     });
-    if (fresh || req.body.removeImage === 'true') removeImage(original.image);
+    if (fresh || req.body.removeImage === 'true') await removeImage(original.image);
     res.json({
       ok: true
     });
   } catch (e) {
-    removeImage(fresh);
+    await removeImage(fresh);
     throw e;
   }
 });
@@ -370,7 +379,7 @@ app.delete('/api/ideas/:id', async (req, res) => {
     });
     return idea;
   });
-  removeImage(idea.image);
+  await removeImage(idea.image);
   res.json({
     ok: true
   });
@@ -432,12 +441,18 @@ app.patch('/api/admin/settings', async (req, res) => {
   await transaction(async () => {
     const old = await settings();
     const flags = ['show_timer', 'show_welcome', 'top_votes', 'top_likes', 'innovation_award', 'peoples_award'];
-    const allowed = ['mode', 'starts_at', 'ends_at', 'max_votes', ...flags, 'submission_mode', 'submission_ends_at'];
+    const allowed = ['mode', 'starts_at', 'ends_at', 'max_votes', ...flags, 'submission_mode', 'submission_ends_at', 'footer_text', 'footer_link_text', 'footer_url'];
     if (Object.keys(req.body).some(k => !allowed.includes(k))) throw error(400, 'Unknown setting.');
     const s = {
       ...old,
       ...req.body
     };
+    for (const [key, limit] of [['footer_text', 200], ['footer_link_text', 80]]) {
+      if (typeof s[key] !== 'string' || !s[key].trim() || s[key].trim().length > limit) throw error(400, `Footer ${key === 'footer_text' ? 'message' : 'link text'} must be between 1 and ${limit} characters.`);
+      s[key] = s[key].trim();
+    }
+    if (typeof s.footer_url !== 'string' || !isFooterUrl(s.footer_url.trim())) throw error(400, 'Enter a full HTTP or HTTPS footer URL without embedded credentials.');
+    s.footer_url = s.footer_url.trim();
     if (!['open', 'closed', 'scheduled'].includes(s.mode)) throw error(400, 'Invalid voting mode.');
     if (!['open', 'closed', 'scheduled'].includes(s.submission_mode)) throw error(400, 'Invalid submission mode.');
     if (!Number.isInteger(s.max_votes) || s.max_votes < 1 || s.max_votes > 100) throw error(400, 'Maximum votes must be between 1 and 100.');

@@ -31,14 +31,14 @@ export function signInEmail({ from, to, code }) {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f0fc;border:1px solid #d8cdeb;border-radius:12px;">
             <tr><td align="center" style="padding:24px 8px;">
               <p style="margin:0 0 12px;font-size:12px;line-height:1.5;font-weight:700;letter-spacing:1.5px;color:#716a78;">YOUR SIGN-IN CODE</p>
-              <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:44px;line-height:1.3;font-weight:800;letter-spacing:6px;color:#4923af;">${code}</p>
+              <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:48px;line-height:1.3;font-weight:900;letter-spacing:6px;color:#4923af;">${code}</p>
               <p style="margin:14px 0 0;font-size:14px;line-height:1.5;color:#716a78;">This code expires in <strong>10 minutes.</strong></p>
             </td></tr>
           </table>
           <p style="margin:24px 0 0;font-size:14px;line-height:1.7;color:#716a78;">Enter the code on the sign-in page. Keep it private &mdash; never share your sign-in code.</p>
           <p style="margin:16px 0 0;font-size:12px;line-height:1.7;color:#716a78;">Didn't request this email? You can safely ignore it.</p>
         </td></tr>
-        <tr><td align="center" style="padding:20px 24px;border-top:1px solid #e1dce8;font-size:12px;line-height:1.7;color:#716a78;">One NEP. Endless possibilities.</td></tr>
+        <tr><td align="center" style="padding:20px 24px;border-top:1px solid #e1dce8;font-size:12px;line-height:1.7;color:#716a78;">NEP - 40 years of innovation</td></tr>
       </table>
     </td></tr>
   </table>

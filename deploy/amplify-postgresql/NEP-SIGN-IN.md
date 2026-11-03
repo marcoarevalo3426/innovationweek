@@ -9,20 +9,22 @@ The app admits any valid address on the exact `@nepgroup.com` domain. A colleagu
 
 Other domains, subdomains and lookalikes remain blocked. The frontend and API share the same validation rules. Local development retains its existing authentication bypass; production always requires verification.
 
-## Current AWS email blocker
+## AWS email access — now approved
 
-Read-only checks on **3 November 2026** in **Sydney (`ap-southeast-2`)** found:
+**Latest check on 3 November 2026:** SES production access is enabled and AWS review status is `GRANTED`. The regional quota is 50,000 messages per 24 hours and 14 messages per second. Individual colleagues no longer need SES recipient verification; the application still verifies ownership of each mailbox with its six-digit code. Keep the sender identity verified and account for the SES send-rate quota when planning a large sign-in burst. EC2 scaling does not change that quota.
+
+Before approval, read-only checks in **Sydney (`ap-southeast-2`)** found:
 
 - SES `ProductionAccessEnabled=false` (sandbox), with sending enabled.
 - Only one individual sender/recipient identity currently verifies successfully.
 - The `nepgroup.com` domain identity has `VerificationStatus=FAILED`; it does not authorize every address on that domain in the sandbox.
 - Account-level suppression is enabled for both bounces and complaints.
 
-The app's login rules cannot override SES recipient restrictions. Production access lets SES deliver to colleagues without individual SES recipient verification. Keep the sender identity verified. A separate option is verifying the entire `nepgroup.com` domain if your organization authorizes the required DNS changes; do not assume this app's `nepinnovationweek.com` zone controls the corporate domain.
+The app's login rules cannot override SES recipient restrictions. Production access now permits delivery to colleagues without individual SES recipient verification. Keep the sender identity verified. If your organization later authorizes verification of the entire `nepgroup.com` domain, its DNS is separate from this app's `nepinnovationweek.com` zone.
 
 ## Request SES production access
 
-**Submitted with your approval on 3 November 2026.** AWS reports review status `PENDING`; `ProductionAccessEnabled` remains `false`. Wait for AWS's review instead of submitting a duplicate request. The steps below are retained as a reference for the submitted request and its status checks.
+**Submitted with your approval on 3 November 2026 and subsequently granted by AWS.** No duplicate request is needed. The steps below are retained as a reference for the submitted request and its status checks.
 
 The prepared [request JSON](ses-production-access-request.json) describes the actual transactional code workflow, domain restriction, code expiry, rate limits and existing suppression settings. Submitting it sends an account-review request to AWS; it does not immediately approve production access.
 
@@ -56,6 +58,6 @@ curl --fail-with-body http://127.0.0.1:3001/api/health
 
 Keep `NODE_ENV=production`, `MAIL_MODE=smtp`, the verified `MAIL_FROM`, and your existing Sydney SMTP credentials. Keep `APP_ORIGIN=https://nepinnovationweek.com`. Do not add every colleague to `ADMIN_EMAILS` or to a database table to enable sign-in.
 
-After AWS approval, have a colleague who has not signed in before visit the app and request their own code. Verify receipt, complete sign-in, then reload to confirm the session. They should have normal user permissions. Email generation and account verification are tested locally; delivery to arbitrary production recipients still requires AWS approval and an actual mailbox test.
+Now that AWS has approved production access, have a colleague who has not signed in before visit the app and request their own code. Verify receipt, complete sign-in, then reload to confirm the session. They should have normal user permissions. Email generation and account verification are tested locally; delivery and mailbox filtering still need a real recipient test.
 
 Sources: [SES sandbox restrictions and production access](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html), [AWS CLI request fields](https://docs.aws.amazon.com/cli/latest/reference/sesv2/put-account-details.html).

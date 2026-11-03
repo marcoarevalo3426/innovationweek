@@ -11,7 +11,7 @@ test('sign-in email preserves leading zeros and includes readable HTML and plain
   assert.match(mail.text, /000123/);
   assert.match(mail.text, /10 minutes/);
   assert.match(mail.html, />000123<\/p>/);
-  assert.match(mail.html, /font-size:44px[^>]+font-weight:800/);
+  assert.match(mail.html, /font-size:48px[^>]+font-weight:900/);
   assert.match(mail.html, /never share your sign-in code/i);
   assert.equal(mail.to, envelope.to);
 });

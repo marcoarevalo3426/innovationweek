@@ -1,5 +1,7 @@
 # Production domains: Amplify and the Debian EC2 API
 
+> The API is now managed by [EC2 Auto Scaling](../autoscaling/README.md). Persistent environment changes must be made in the encrypted SSM parameter `/innovation-week/production/env`; the local environment file is refreshed at startup. The single-server environment-edit steps below are historical reference. Prefer SSM administration and versioned fleet releases for the current production setup.
+
 This deployment uses `https://nepinnovationweek.com` for the frontend and `https://api.nepinnovationweek.com` for the API. Resources are in **Sydney (`ap-southeast-2`), account `375033595717`**. The browser continues to use relative `/api/` requests through Amplify, so the existing session-cookie authentication works on the frontend domain.
 
 **Verified on 3 November 2026:** frontend HTTP 200; API HTTPS certificate valid; target healthy; both direct and Amplify-proxied health checks HTTP 200 with PostgreSQL connected; production `/api/auth/me` reports local authentication disabled; `www` redirects to the apex. An invalid-email POST accepts the apex origin and rejects an unrelated origin, without sending mail or creating an email challenge. Real SES delivery and a complete OTP sign-in were not exercised.
@@ -18,7 +20,7 @@ This deployment uses `https://nepinnovationweek.com` for the frontend and `https
 | Application Load Balancer | `innovation-week-api-alb` |
 | ALB DNS | `innovation-week-api-alb-744831183.ap-southeast-2.elb.amazonaws.com` |
 | Backend target group | `innovation-week-api-tg`, HTTP port `3001`, instance target |
-| Health check | `/api/health`, HTTP `200` required |
+| ALB health check | `/`, HTTP `200` required for the Node process; `/api/health` separately verifies PostgreSQL |
 | API ACM certificate | `71ff9c66-431a-4baf-a37d-001898512b5b`, domain `api.nepinnovationweek.com` |
 
 The ALB spans `subnet-a04b31e9` (AZ a) and `subnet-75df1c2d` (AZ c). Public HTTP redirects to HTTPS. TLS terminates at the ALB, which forwards HTTP over the VPC to Node port 3001. **Nginx and Certbot are not required for this ALB route**; the earlier single-instance Nginx instructions describe a different deployment path. The ALB has ongoing AWS charges.

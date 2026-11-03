@@ -94,3 +94,20 @@ test('an empty legacy import cannot be repeated, and changed target settings are
   const report=await importSQLite({source,pool:database.pool,targetDir});assert.equal(report.counts.users,0);
   await assert.rejects(importSQLite({source,pool:database.pool,targetDir}),/not empty/);
 });
+
+
+test('version-one upgrade adds footer defaults and preserves existing event settings',async t=>{
+  const database=await testDatabase();t.after(()=>database.cleanup());
+  const firstMigration=readFileSync(new URL('../server/migrations/001-postgresql.sql',import.meta.url),'utf8');
+  await database.pool.query(firstMigration);
+  await database.pool.query('CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT NOT NULL)');
+  await database.pool.query("INSERT INTO schema_migrations VALUES(1,'2026-11-01')");
+  await database.pool.query('UPDATE settings SET max_votes=7,round=4,show_welcome=0');
+  await migrate(database.pool);await checkSchema(database.pool);
+  const row=(await database.pool.query('SELECT * FROM settings')).rows[0];
+  assert.equal(row.max_votes,7);assert.equal(row.round,4);assert.equal(row.show_welcome,0);
+  assert.equal(row.footer_text,'For more information,');assert.equal(row.footer_link_text,'Click here');assert.equal(row.footer_url,'https://nepgroup.atlassian.net/wiki/x/AQBTyw');
+  await database.pool.query("UPDATE settings SET footer_text='Custom footer' WHERE id=1");
+  await migrate(database.pool);
+  assert.equal((await database.pool.query('SELECT footer_text FROM settings')).rows[0].footer_text,'Custom footer');
+});

@@ -1,10 +1,10 @@
--- NEP Innovation Week: exact PostgreSQL schema, release schema version 1.
--- Generated from server/migrations/001-postgresql.sql; includes the migration
+-- NEP Innovation Week: exact PostgreSQL schema, release schema version 2.
+-- Generated from server/migrations/001-postgresql.sql and 002-footer-link.sql; includes the migration
 -- metadata required by server/migrate.js. Contains no existing user data.
 -- Run ONCE in an EMPTY innovation_week database using its migration owner:
 -- psql "host=... dbname=innovation_week ... sslmode=verify-full ..." -W -v ON_ERROR_STOP=1 -f create-schema.sql
 -- Existing application tables cause an error and roll back this transaction.
--- Source migration SHA256: 08ad6c7520308385e4f189657d053aaad2940d148d1d1c5db161d741d3f04c3d
+-- Migration 001 SHA256: 08ad6c7520308385e4f189657d053aaad2940d148d1d1c5db161d741d3f04c3d
 BEGIN;
 SET LOCAL search_path = public, pg_catalog;
 SELECT pg_advisory_xact_lock(731901,0);
@@ -89,6 +89,13 @@ CREATE TABLE data_imports (
   imported_at TEXT NOT NULL
 );
 
+-- Additive settings only: existing ideas, accounts, votes and schedules are retained.
+ALTER TABLE settings
+  ADD COLUMN footer_text TEXT NOT NULL DEFAULT 'For more information,' CHECK (char_length(footer_text) BETWEEN 1 AND 200),
+  ADD COLUMN footer_link_text TEXT NOT NULL DEFAULT 'Click here' CHECK (char_length(footer_link_text) BETWEEN 1 AND 80),
+  ADD COLUMN footer_url TEXT NOT NULL DEFAULT 'https://nepgroup.atlassian.net/wiki/x/AQBTyw' CHECK (char_length(footer_url) BETWEEN 1 AND 2048);
+
 INSERT INTO schema_migrations(version,applied_at)
 VALUES (1, to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
+INSERT INTO schema_migrations(version,applied_at) VALUES(2,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 COMMIT;

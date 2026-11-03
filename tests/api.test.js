@@ -43,6 +43,23 @@ test('Full local API workflow and security rules',async t=>{
    assert.equal((await request('/auth/verify',{method:'POST',body:{email,code:sent.data.developmentCode}})).status,400);
  });
  await t.test('verifies six-digit codes, assigns explicit admin and prevents replay',async()=>{alice=await login('alice@nepgroup.com','alice');bob=await login('bob@nepgroup.com','bob');admin=await login('admin@nepgroup.com','admin');assert.equal(alice.user.is_admin,0);assert.equal(admin.user.is_admin,1);assert.equal((await request('/auth/verify',{method:'POST',body:{email:'alice@nepgroup.com',code:alice.code}})).status,400);await request('/auth/request',{method:'POST',body:{email:'cooldown@nepgroup.com'}});assert.equal((await request('/auth/request',{method:'POST',body:{email:'cooldown@nepgroup.com'}})).status,429);});
+ await t.test('footer settings require admin, validate external URLs, persist and appear in gallery',async()=>{
+   const initial=(await request('/ideas',{client:'alice'})).data.settings;
+   assert.equal(initial.footer_text,'For more information,');
+   assert.equal(initial.footer_link_text,'Click here');
+   assert.equal(initial.footer_url,'https://nepgroup.atlassian.net/wiki/x/AQBTyw');
+   const patch=(body,client='admin')=>request('/admin/settings',{client,method:'PATCH',body});
+   assert.equal((await patch({footer_text:'Denied'},'alice')).status,403);
+   for(const footer_url of ['javascript:alert(1)','data:text/html,test','https://user:password@example.com','not-a-url','https://example.com/with space']) assert.equal((await patch({footer_url})).status,400);
+   assert.equal((await patch({footer_text:'   '})).status,400);
+   assert.equal((await patch({footer_link_text:'x'.repeat(81)})).status,400);
+   assert.equal((await patch({footer_text:'  Read the event guide,  ',footer_link_text:'Open guide',footer_url:'https://example.com/guide?year=2026'})).status,200);
+   await patch({show_timer:0});
+   const saved=(await request('/ideas',{client:'bob'})).data.settings;
+   assert.equal(saved.footer_text,'Read the event guide,');assert.equal(saved.footer_link_text,'Open guide');assert.equal(saved.footer_url,'https://example.com/guide?year=2026');
+   assert.equal(saved.max_votes,initial.max_votes);assert.equal(saved.mode,initial.mode);
+   await patch({footer_text:initial.footer_text,footer_link_text:initial.footer_link_text,footer_url:initial.footer_url,show_timer:initial.show_timer});
+ });
  await t.test('locks an OTP after five wrong attempts',async()=>{const email='locked@nepgroup.com';const {data}=await request('/auth/request',{method:'POST',body:{email}});const wrong=data.developmentCode==='111111'?'222222':'111111';for(let n=0;n<5;n++)assert.equal((await request('/auth/verify',{method:'POST',body:{email,code:wrong}})).status,400);assert.equal((await request('/auth/verify',{method:'POST',body:{email,code:data.developmentCode}})).status,400);});
  await t.test('starts empty and enforces two-idea limit with validated image upload',async()=>{assert.equal((await request('/ideas',{client:'alice'})).data.ideas.length,0);const img=await sharp({create:{width:20,height:20,channels:3,background:'#663399'}}).png().toBuffer();let res=await request('/ideas',{client:'alice',method:'POST',body:form(ideaBody('Connected production'),img)});assert.equal(res.status,201);first=res.data;assert.match(first.image,/\.webp$/);assert.equal((await request('/images/'+first.image)).status,401);assert.equal((await request('/images/'+first.image,{client:'alice'})).status,200);res=await request('/ideas',{client:'alice',method:'POST',body:form(ideaBody('Greener broadcast'))});second=res.data;assert.equal(res.status,201);assert.equal((await request('/ideas',{client:'alice',method:'POST',body:form(ideaBody('Third idea'))})).status,409);third=(await request('/ideas',{client:'bob',method:'POST',body:form(ideaBody('Virtual collaboration'))})).data;});
  await t.test('rejects invalid fields and unsafe or oversize images',async()=>{assert.equal((await request('/ideas',{client:'bob',method:'POST',body:form({...ideaBody(''),title:''})})).status,400);assert.equal((await request('/ideas',{client:'bob',method:'POST',body:form(ideaBody('Bad image'),Buffer.from('<svg/>'))})).status,400);assert.equal((await request('/ideas',{client:'bob',method:'POST',body:form(ideaBody('Too big'),Buffer.alloc(2*1024*1024+1))})).status,400);});

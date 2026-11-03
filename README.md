@@ -70,7 +70,7 @@ The optional subheader countdown is controlled by **Admin → Voting & schedule 
 ## What is included
 
 - NEP-only email validation on both client and server; cryptographically random six-digit codes, ten-minute expiration, five attempts, resend cooldown, rate limiting, hashed codes and sessions, one-day HttpOnly session cookies, logout and same-origin mutation protection.
-- Branded sign-in emails with the supplied NEP Innovation Week logo embedded inline, a prominent bold 44px code, mobile-friendly formatting and a plain-text alternative. The code still expires after ten minutes; local authentication behaviour is unchanged.
+- Branded sign-in emails with the supplied NEP Innovation Week logo embedded inline, a prominent bold 48px code, mobile-friendly formatting and a plain-text alternative. The code still expires after ten minutes; local authentication behaviour is unchanged.
 - Responsive gallery: four cards on wide desktops, three on narrower desktops, two on tablets and one on phones. Card images are 250px high. Accessible detail dialogs, search, sorting and personal like/vote filters.
 - The share/edit idea dialog preserves drafts on backdrop clicks and Escape. Successful submissions display **Your idea is shared.**; edits display **Changes saved.** The submit button becomes disabled (**Submitted** or **Saved**). Close the dialog with X or Cancel. Idea-detail and confirmation dialogs retain their separate dismissal behaviour.
 - User area: up to two current submissions per ordinary user, with create/edit/delete. Required title (120 characters), problem (4,000), solution (4,000) and team skills (1,000); optional JPG/PNG/WebP image up to 2 MiB. Images can be replaced or removed; the server validates and re-encodes uploads to WebP.
@@ -117,7 +117,9 @@ The old SQLite file is retained as an import/backup source and is not updated by
 
 ## Email through Amazon SES or another SMTP provider
 
-Sign-in messages include an inline PNG logo, a styled HTML layout, a bold 44px code and a plain-text alternative. Deploy `server/sign-in-email.js`, the updated `server/index.js`, and `public/nep-innovation-week.png` to the API server and restart the service for email changes to take effect. Uploading the frontend ZIP alone changes the website styles but does not update server-generated emails. Existing SMTP credentials and code expiry rules are unchanged.
+Sign-in messages include an inline PNG logo, a styled HTML layout, a bold 48px code and a plain-text alternative. Deploy `server/sign-in-email.js`, the updated `server/index.js`, and `public/nep-innovation-week.png` to the API server and restart the service for email changes to take effect. Uploading the frontend ZIP alone changes the website styles but does not update server-generated emails. Existing SMTP credentials and code expiry rules are unchanged.
+
+For an existing Debian installation, use the email-only update package and [deployment instructions](deploy/amplify-postgresql/EMAIL-UPDATE.md). Its installer backs up the affected files and preserves unrelated API code, including changes made since the last full deployment.
 
 To test delivery locally, disable the local bypass. Edit `.env`:
 
@@ -191,6 +193,10 @@ Start with [the single setup walkthrough](deploy/amplify-postgresql/SETUP.md) to
 The [Amplify PostgreSQL deployment guide](deploy/amplify-postgresql/README.md) explains RDS creation/private networking, database dump/restore, restricted roles, the existing Express connection and an optional native Amplify Gen 2 SQL integration. It includes an RDS server environment template and a Gen 2 pipeline example, without changing the active `amplify/` resources.
 
 The default Amplify `Todo` model uses DynamoDB. Native PostgreSQL integration generates an AppSync/SQL Lambda connection to an existing database; it does not automatically replace the current REST login/voting API. The guide keeps those two deployment paths explicit.
+
+### EC2 Auto Scaling preparation
+
+The [scaling and Europe-access guide](deploy/autoscaling/README.md) covers the selected 1–4 t3.medium fleet, shared private S3 images, optional PostgreSQL rate-limit counters, encrypted startup configuration, compressed API responses and reduced frontend polling. The live AWS group **innovation-week-api-asg** is enabled with a 1–4 instance range. Replacement startup, shared state, two healthy targets and scale-in to one were verified. Persistent production configuration is now managed through the encrypted SSM parameter `/innovation-week/production/env`; future API changes require a versioned fleet release. Apply the operational rate-limit SQL before enabling `RATE_LIMIT_STORE=postgres`. Local installations retain local images and in-memory counters by default.
 
 ### Amplify frontend hosting: connect the Express API
 
@@ -266,4 +272,11 @@ The suite covers the full API workflow, development authentication isolation, vo
 
 The optional Playwright browser suite requires a running loopback PostgreSQL server and uses a separate schema. Install Chromium with `npx playwright install chromium`, then run `npm run test:e2e`. See its configuration for executable overrides. No tests should target production event tables.
 
-Current checks: **46 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.
+Current checks: **52 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.
+
+
+### Editable footer link
+
+In **Admin → Footer link**, change the footer message, clickable text, and full HTTP/HTTPS URL, then choose **Save settings**. The default is “For more information, Click here” pointing to the NEP Confluence guide. The link opens in a new tab. Footer spacing is 100px on desktop, 60px on tablet (up to 1100px), and 40px on mobile (up to 600px).
+
+This release uses PostgreSQL schema version **2**. Existing installations must run `npm run db:migrate` as the database migration owner before starting the new API. Migration `002-footer-link.sql` only adds footer settings and preserves event data. The runtime role continues to use its existing settings-table permissions.

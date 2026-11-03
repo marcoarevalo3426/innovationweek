@@ -36,21 +36,12 @@ export function VotingHero({settings,now,votesAvailable}) {
       <p>{open?'A bold idea deserves a little backing. Explore the possibilities and help shape what comes next.':upcoming?'Meet the ideas. Find your favourites. Get ready to make your voice count.':ended?'Thank you for backing brighter possibilities. Keep exploring the ideas that could shape our future.':'The possibilities are here. Explore the ideas and give your favourites a little love while voting is closed.'}</p>
       {(open||upcoming)&&Number.isFinite(seconds)?<div className="hero-countdown" role="timer" aria-live="off" aria-label={`Voting ${upcoming?'starts':'ends'} in ${remaining[0]} days, ${remaining[1]} hours, ${remaining[2]} minutes, ${remaining[3]} seconds`}>
         <div className="countdown-label"><Clock3 size={14}/>{upcoming?'VOTING STARTS IN':'VOTING ENDS IN'}</div>
-        <div className="countdown-digits">{remaining.map((value,index)=><div key={index}><strong>{String(value).padStart(2,'0')}</strong><span>{['DAYS','HOURS','MINUTES','SECONDS'][index]}</span></div>)}</div>
+        <div className="countdown-digits">{remaining.map((value,index)=><div key={index}><strong>{String(value).padStart(2,'0')}</strong><span>{['DAYS','HOURS','MINS','SECS'][index]}</span></div>)}</div>
         <span className="event-date">{upcoming?'Opens':'Closes'} {eventDate(target)}</span>
       </div>:<div className="event-message">{open?<Clock3 size={18}/>:<LockKeyhole size={18}/>}<div><strong>{open?'Closing time to be announced':ended?'Every vote is part of our next chapter.':'Great thinking never stops.'}</strong><span>{ended?`Voting ended ${eventDate(settings.ends_at)}`:open?'The administrator can configure the closing date.':'Likes and ideas stay here for you to explore.'}</span></div></div>}
       <a className="event-cta" href="#ideas-gallery">{open?<Vote size={17}/>:<ArrowDown size={16}/>} {open?'Explore & vote':'Explore the ideas'}<ArrowUpRight size={17}/></a>
     </div>
     <BallotGraphic closed={!open}/>
     <div className="voting-hero-footer"><span><span className="event-dot"/>{open?`${votesAvailable} VOTE${votesAvailable===1?'':'S'} AVAILABLE TO YOU`:upcoming?'YOUR FAVOURITE IDEAS ARE WAITING':'ONE NEP. ENDLESS POSSIBILITIES.'}</span><span>INNOVATION WEEK · MADE POSSIBLE BY YOU</span></div>
-  </section>;
-}
-
-export function SubmissionNotice({settings,canAdd,onCreate}) {
-  const open=settings.submission_status==='open';
-  return <section className={`submission-notice ${open?'':'submissions-closed'}`} aria-label="Idea submission status">
-    <div className="submission-notice-icon">{open?<Sparkles size={20}/>:<LockKeyhole size={20}/>}</div>
-    <div><strong>{open?'Still have a little what if?':'Idea submissions are closed.'}</strong><p>{!open?'New submissions are paused. You can still explore, like and edit your existing ideas.':!canAdd?'You’ve shared your 2 ideas. You can keep refining them in My ideas.':settings.submission_mode==='scheduled'?`Share your idea before ${eventDate(settings.submission_ends_at)}.`:'Add your perspective. The next great idea could be yours.'}</p></div>
-    <button className="button secondary" disabled={!canAdd} onClick={onCreate}>{open?<Sparkles size={15}/>:<LockKeyhole size={15}/>} {open?'Share your idea':'Submissions closed'}</button>
   </section>;
 }

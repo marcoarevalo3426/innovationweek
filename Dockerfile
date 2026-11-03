@@ -14,6 +14,7 @@ COPY --from=build /app/dist ./dist
 COPY server ./server
 COPY scripts ./scripts
 COPY shared ./shared
+COPY public/nep-innovation-week.png ./public/nep-innovation-week.png
 USER node
 VOLUME ["/data"]
 EXPOSE 3001

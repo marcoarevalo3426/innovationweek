@@ -53,7 +53,8 @@ Optional fictitious demo data can be added with `npm run seed:demo` before use; 
 | Area | Current behaviour |
 | --- | --- |
 | Local sign-in | Opens as Local Admin without an email form, code, email delivery or session cookie. Production continues to require email authentication. |
-| Typography | All application text has a minimum font size of **11px**, including mobile layouts. |
+| Typography | All application text has a minimum font size of **12px**, including mobile layouts. |
+| Text and borders | Muted text previously using `#afa4b6`, `#9a92a2`, `#8a8591`, `#948b9e` or `#a28eaf` uses `#716a78`. Borders are slightly darker for clearer separation. |
 | Countdown subheader | The “Innovation week starts in” / “Innovation week ends in” text and remaining time are **14px** on desktop, tablet and mobile. The previous “Make your ideas count” text and its arrow icon have been removed. |
 | Before voting | The original **Big ideas. Brighter possibilities.** welcome section appears by default. Toggle it in **Admin → Homepage & awards → Show the welcome section before voting**, then save. |
 | During voting | The welcome section is replaced by the illustrated **Voting Open** panel and its live end-time countdown. |
@@ -66,6 +67,7 @@ The optional subheader countdown is controlled by **Admin → Voting & schedule 
 ## What is included
 
 - NEP-only email validation on both client and server; cryptographically random six-digit codes, ten-minute expiration, five attempts, resend cooldown, rate limiting, hashed codes and sessions, one-day HttpOnly session cookies, logout and same-origin mutation protection.
+- Branded sign-in emails with the supplied NEP Innovation Week logo embedded inline, a prominent bold 44px code, mobile-friendly formatting and a plain-text alternative. The code still expires after ten minutes; local authentication behaviour is unchanged.
 - Responsive gallery: four cards on wide desktops, three on narrower desktops, two on tablets and one on phones. Card images are 250px high. Accessible detail dialogs, search, sorting and personal like/vote filters.
 - The share/edit idea dialog preserves drafts on backdrop clicks and Escape. Successful submissions display **Your idea is shared.**; edits display **Changes saved.** The submit button becomes disabled (**Submitted** or **Saved**). Close the dialog with X or Cancel. Idea-detail and confirmation dialogs retain their separate dismissal behaviour.
 - User area: up to two current submissions per ordinary user, with create/edit/delete. Required title (120 characters), problem (4,000), solution (4,000) and team skills (1,000); optional JPG/PNG/WebP image up to 2 MiB. Images can be replaced or removed; the server validates and re-encodes uploads to WebP.
@@ -111,6 +113,8 @@ PostgreSQL backups contain application records. `DATA_DIR` still contains upload
 The old SQLite file is retained as an import/backup source and is not updated by the converted app. Source ZIPs and container images contain no user data or secrets. Building the frontend does not alter PostgreSQL records. See [the PostgreSQL guide](deploy/postgresql/README.md) for import validation, test isolation and AWS transfer steps.
 
 ## Email through Amazon SES or another SMTP provider
+
+Sign-in messages include an inline PNG logo, a styled HTML layout, a bold 44px code and a plain-text alternative. Deploy `server/sign-in-email.js`, the updated `server/index.js`, and `public/nep-innovation-week.png` to the API server and restart the service for email changes to take effect. Uploading the frontend ZIP alone changes the website styles but does not update server-generated emails. Existing SMTP credentials and code expiry rules are unchanged.
 
 To test delivery locally, disable the local bypass. Edit `.env`:
 
@@ -186,6 +190,8 @@ The [Amplify PostgreSQL deployment guide](deploy/amplify-postgresql/README.md) e
 The default Amplify `Todo` model uses DynamoDB. Native PostgreSQL integration generates an AppSync/SQL Lambda connection to an existing database; it does not automatically replace the current REST login/voting API. The guide keeps those two deployment paths explicit.
 
 ### Amplify frontend hosting: connect the Express API
+
+For the current `nepinnovationweek.com` frontend and `api.nepinnovationweek.com` API, follow [the custom domain and ALB deployment notes](deploy/amplify-postgresql/CUSTOM-DOMAINS.md). They record the project resources, required Debian environment changes and public health checks. This route uses ACM HTTPS on an Application Load Balancer in front of Node; Nginx/Certbot are unnecessary for that route.
 
 If the site loads on Amplify but sign-in reports an unreachable API, follow [the Amplify API routing guide](deploy/amplify/README.md). A static Vite deployment publishes the UI but does not start `server/index.js`. Deploy the API separately with PostgreSQL/SES, then add a **200 HTTPS rewrite for `/api/<*>` before the SPA fallback**. Set the backend's `APP_ORIGIN` to the Amplify/custom frontend origin. Routing and frontend build templates are provided under `deploy/amplify/`; they are not automatically applied to AWS.
 

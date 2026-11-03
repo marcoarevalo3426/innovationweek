@@ -10,6 +10,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from '
 import { resolve } from 'node:path';
 import { db, dataDir, get, all, run, audit, transaction, settings, votingState, submissionState } from './db.js';
 import { isLocalAuthEnabled } from './auth-mode.js';
+import { signInEmail } from './sign-in-email.js';
 const app = express();
 const production = process.env.NODE_ENV === 'production';
 const localAuth = isLocalAuthEnabled();
@@ -153,12 +154,11 @@ app.post('/api/auth/request', async (req, res) => {
     await run("INSERT INTO challenges(email,hash,expires,attempts,sent_at) VALUES($1,$2,$3,0,$4) ON CONFLICT(email) DO UPDATE SET hash=EXCLUDED.hash,expires=EXCLUDED.expires,attempts=0,sent_at=EXCLUDED.sent_at", email, otpHash(email, code), now + 600000, now);
   });
   try {
-    if (transporter) await transporter.sendMail({
+    if (transporter) await transporter.sendMail(signInEmail({
       from: process.env.MAIL_FROM,
       to: email,
-      subject: 'Your NEP Innovation Week sign-in code',
-      text: `Your sign-in code is ${code}. It expires in 10 minutes. If you did not request this, you can ignore this message.`
-    });else console.log(`[LOCAL EMAIL] ${email}: ${code} (expires in 10 minutes)`);
+      code
+    }));else console.log(`[LOCAL EMAIL] ${email}: ${code} (expires in 10 minutes)`);
   } catch (e) {
     await transaction(async () => {
       await run("DELETE FROM challenges WHERE email=$1 AND hash=$2", email, otpHash(email, code));

@@ -111,3 +111,13 @@ test('version-one upgrade adds footer defaults and preserves existing event sett
   await migrate(database.pool);
   assert.equal((await database.pool.query('SELECT footer_text FROM settings')).rows[0].footer_text,'Custom footer');
 });
+
+
+test('schema-three upgrade keeps existing likes and defaults to receiving likes',async t=>{
+ const database=await testDatabase();t.after(()=>database.cleanup());
+ for(const file of ['001-postgresql.sql','002-footer-link.sql','003-submission-limit.sql'])await database.pool.query(readFileSync(new URL('../server/migrations/'+file,import.meta.url),'utf8'));
+ await database.pool.query("CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT NOT NULL);INSERT INTO schema_migrations VALUES(3,'before');INSERT INTO users VALUES('existing','existing@nepgroup.com',0,'now');INSERT INTO ideas VALUES('existing-idea','existing','Title','Problem','Solution','Skills',NULL,'now','now');INSERT INTO likes VALUES('existing','existing-idea');UPDATE settings SET max_votes=7,max_ideas=5");
+ await migrate(database.pool);await checkSchema(database.pool);
+ const s=(await database.pool.query('SELECT * FROM settings')).rows[0];assert.equal(s.likes_mode,'open');assert.equal(s.likes_starts_at,null);assert.equal(s.likes_ends_at,null);assert.equal(s.max_votes,7);assert.equal(s.max_ideas,5);
+ assert.equal((await database.pool.query('SELECT COUNT(*) AS n FROM likes')).rows[0].n,1);
+});

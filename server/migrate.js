@@ -4,6 +4,7 @@ const migrations = [
   { version: 1, file: new URL('./migrations/001-postgresql.sql', import.meta.url) },
   { version: 2, file: new URL('./migrations/002-footer-link.sql', import.meta.url) },
   { version: 3, file: new URL('./migrations/003-submission-limit.sql', import.meta.url) },
+  { version: 4, file: new URL('./migrations/004-like-schedule.sql', import.meta.url) },
 ];
 export const SCHEMA_VERSION = migrations.at(-1).version;
 export async function migrate(pool) {

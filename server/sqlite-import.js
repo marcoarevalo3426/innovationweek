@@ -8,7 +8,7 @@ import { checkSchema } from './migrate.js';
 const columns = {
   users: ['id','email','is_admin','created_at'],
   ideas: ['id','user_id','title','problem','solution','skills','image','created_at','updated_at'],
-  settings: ['id','mode','starts_at','ends_at','max_votes','round','show_timer','top_votes','top_likes','innovation_award','peoples_award','submission_mode','submission_ends_at','show_welcome','voting_started_at','footer_text','footer_link_text','footer_url','max_ideas'],
+  settings: ['id','mode','starts_at','ends_at','max_votes','round','show_timer','top_votes','top_likes','innovation_award','peoples_award','submission_mode','submission_ends_at','show_welcome','voting_started_at','footer_text','footer_link_text','footer_url','max_ideas','likes_mode','likes_starts_at','likes_ends_at'],
   likes: ['user_id','idea_id'],
   votes: ['user_id','idea_id','round'],
   audit: ['id','at','actor','action','details'],
@@ -36,6 +36,9 @@ export async function importSQLite({ source, pool, targetDir, dryRun = false }) 
   old.submission_ends_at ??= null;
   old.show_welcome ??= 1;
   old.max_ideas ??= 2;
+  old.likes_mode ??= 'open';
+  old.likes_starts_at ??= null;
+  old.likes_ends_at ??= null;
   for (const [key, value] of Object.entries(DEFAULT_FOOTER)) old[key] ??= value;
   if (!Object.hasOwn(old, 'voting_started_at')) {
     const started = old.mode === 'open' || Date.parse(old.starts_at) <= Date.now() || Date.parse(old.ends_at) <= Date.now() || rows.votes.some(vote => vote.round === old.round);
@@ -63,7 +66,7 @@ export async function importSQLite({ source, pool, targetDir, dryRun = false }) 
       const result = await client.query(`SELECT COUNT(*) AS n FROM ${table}`);
       if (Number(result.rows[0].n)) throw new Error(`Target is not empty (${table}). Import refused; no rows were replaced.`);
     }
-    const pristine = {id:1,mode:'closed',starts_at:null,ends_at:null,max_votes:2,round:1,show_timer:1,top_votes:0,top_likes:0,innovation_award:0,peoples_award:0,submission_mode:'open',submission_ends_at:null,show_welcome:1,voting_started_at:null,max_ideas:2,...DEFAULT_FOOTER};
+    const pristine = {id:1,mode:'closed',starts_at:null,ends_at:null,max_votes:2,round:1,show_timer:1,top_votes:0,top_likes:0,innovation_award:0,peoples_award:0,submission_mode:'open',submission_ends_at:null,show_welcome:1,voting_started_at:null,max_ideas:2,likes_mode:'open',likes_starts_at:null,likes_ends_at:null,...DEFAULT_FOOTER};
     const currentSettings = (await client.query('SELECT * FROM settings WHERE id=1')).rows[0];
     if (!currentSettings || Object.keys(pristine).some(key => currentSettings[key] !== pristine[key])) throw new Error('Target settings have been changed. Import refused; use a fresh target.');
     if (dryRun) {

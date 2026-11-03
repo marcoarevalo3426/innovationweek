@@ -1,5 +1,5 @@
--- NEP Innovation Week: exact PostgreSQL schema, release schema version 3.
--- Generated from server/migrations/001-postgresql.sql , 002-footer-link.sql and 003-submission-limit.sql; includes the migration
+-- NEP Innovation Week: exact PostgreSQL schema, release schema version 4.
+-- Generated from server/migrations/001-postgresql.sql , 002-footer-link.sql , 003-submission-limit.sql and 004-like-schedule.sql; includes the migration
 -- metadata required by server/migrate.js. Contains no existing user data.
 -- Run ONCE in an EMPTY innovation_week database using its migration owner:
 -- psql "host=... dbname=innovation_week ... sslmode=verify-full ..." -W -v ON_ERROR_STOP=1 -f create-schema.sql
@@ -97,8 +97,15 @@ ALTER TABLE settings
 
 ALTER TABLE settings ADD COLUMN max_ideas INTEGER NOT NULL DEFAULT 2 CHECK (max_ideas BETWEEN 1 AND 100);
 
+-- Preserve existing likes and keep the existing always-open behavior by default.
+ALTER TABLE settings
+  ADD COLUMN likes_mode TEXT NOT NULL DEFAULT 'open' CHECK (likes_mode IN ('open','closed','scheduled')),
+  ADD COLUMN likes_starts_at TEXT,
+  ADD COLUMN likes_ends_at TEXT;
+
 INSERT INTO schema_migrations(version,applied_at)
 VALUES (1, to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 INSERT INTO schema_migrations(version,applied_at) VALUES(2,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 INSERT INTO schema_migrations(version,applied_at) VALUES(3,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
+INSERT INTO schema_migrations(version,applied_at) VALUES(4,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 COMMIT;

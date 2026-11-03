@@ -1,3 +1,4 @@
+import { getLikeStatus } from '../shared/event-state.js';
 import { toCsv } from '../shared/csv.js';
 import { isFooterUrl } from '../shared/footer-settings.js';
 import { monitoringMiddleware } from './monitor-telemetry.mjs';
@@ -256,7 +257,8 @@ app.get('/api/ideas', async (req, res) => {
     settings: {
       ...s,
       status: await votingState(s),
-      submission_status: await submissionState(s)
+      submission_status: await submissionState(s),
+      likes_status: getLikeStatus(s)
     },
     votesUsed: (await get("SELECT COUNT(*) AS n FROM votes WHERE user_id=$1 AND round=$2", req.user.id, s.round)).n,
     serverTime: Date.now()
@@ -388,6 +390,7 @@ app.delete('/api/ideas/:id', async (req, res) => {
 });
 app.post('/api/ideas/:id/like', async (req, res) => {
   await transaction(async () => {
+    if (getLikeStatus(await settings()) !== 'open') throw error(409, 'Likes are currently closed.');
     if (!(await get("SELECT id FROM ideas WHERE id=$1", req.params.id))) throw error(404, 'Idea not found.');
     const liked = await get("SELECT * FROM likes WHERE user_id=$1 AND idea_id=$2", req.user.id, req.params.id);
     if (liked) await run("DELETE FROM likes WHERE user_id=$1 AND idea_id=$2", req.user.id, req.params.id);else await run("INSERT INTO likes(user_id,idea_id) VALUES($1,$2)", req.user.id, req.params.id);
@@ -503,7 +506,7 @@ app.patch('/api/admin/settings', async (req, res) => {
   await transaction(async () => {
     const old = await settings();
     const flags = ['show_timer', 'show_welcome', 'top_votes', 'top_likes', 'innovation_award', 'peoples_award'];
-    const allowed = ['mode', 'starts_at', 'ends_at', 'max_votes', ...flags, 'submission_mode', 'submission_ends_at', 'footer_text', 'footer_link_text', 'footer_url', 'max_ideas'];
+    const allowed = ['mode', 'starts_at', 'ends_at', 'max_votes', ...flags, 'submission_mode', 'submission_ends_at', 'footer_text', 'footer_link_text', 'footer_url', 'max_ideas', 'likes_mode', 'likes_starts_at', 'likes_ends_at'];
     if (Object.keys(req.body).some(k => !allowed.includes(k))) throw error(400, 'Unknown setting.');
     const s = {
       ...old,
@@ -516,13 +519,15 @@ app.patch('/api/admin/settings', async (req, res) => {
     if (typeof s.footer_url !== 'string' || !isFooterUrl(s.footer_url.trim())) throw error(400, 'Enter a full HTTP or HTTPS footer URL without embedded credentials.');
     s.footer_url = s.footer_url.trim();
     if (!['open', 'closed', 'scheduled'].includes(s.mode)) throw error(400, 'Invalid voting mode.');
+    if (!['open', 'closed', 'scheduled'].includes(s.likes_mode)) throw error(400, 'Invalid like mode.');
     if (!['open', 'closed', 'scheduled'].includes(s.submission_mode)) throw error(400, 'Invalid submission mode.');
     if (!Number.isInteger(s.max_votes) || s.max_votes < 1 || s.max_votes > 100) throw error(400, 'Maximum votes must be between 1 and 100.');
     if (!Number.isInteger(s.max_ideas) || s.max_ideas < 1 || s.max_ideas > 100) throw error(400, 'Maximum ideas must be between 1 and 100.');
     for (const k of flags) if (![0, 1].includes(s[k])) throw error(400, 'Display settings must be 0 or 1.');
-    for (const k of ['starts_at', 'ends_at', 'submission_ends_at']) if (s[k] !== null && (typeof s[k] !== 'string' || !Number.isFinite(Date.parse(s[k])))) throw error(400, 'Enter valid schedule dates.');
+    for (const k of ['starts_at', 'ends_at', 'submission_ends_at', 'likes_starts_at', 'likes_ends_at']) if (s[k] !== null && (typeof s[k] !== 'string' || !Number.isFinite(Date.parse(s[k])))) throw error(400, 'Enter valid schedule dates.');
     if (s.mode === 'scheduled' && (!s.starts_at || !s.ends_at || Date.parse(s.ends_at) <= Date.parse(s.starts_at))) throw error(400, 'Voting end must be after the start.');
     if (s.mode === 'open' && !s.ends_at && ('mode' in req.body || 'ends_at' in req.body)) throw error(400, 'Set the voting end date and time to open voting.');
+    if (s.likes_mode === 'scheduled' && (!s.likes_starts_at || !s.likes_ends_at || Date.parse(s.likes_ends_at) <= Date.parse(s.likes_starts_at))) throw error(400, 'Like end must be after the start.');
     if (s.submission_mode === 'scheduled' && !s.submission_ends_at) throw error(400, 'Set the idea submission closing date and time.');
     let startedAt = old.voting_started_at;
     const votingChanged = ['mode', 'starts_at', 'ends_at'].some(k => Object.hasOwn(req.body, k) && s[k] !== old[k]);
@@ -549,6 +554,15 @@ app.post('/api/admin/reset-votes', async (req, res) => {
   res.json({
     ok: true
   });
+});
+app.post('/api/admin/reset-likes', async (req, res) => {
+  if (req.body?.confirmed !== true) throw error(400, 'Confirm before resetting all likes.');
+  const cleared = await transaction(async () => {
+    const result = await run('DELETE FROM likes');
+    await audit(req.user.email, 'admin.likes_reset', {cleared:result.rowCount});
+    return result.rowCount;
+  });
+  res.json({ok:true,cleared});
 });
 app.delete('/api/admin/audit', async (req, res) => {
   if (req.body?.confirmed !== true) throw error(400, 'Confirm before clearing activity logs.');

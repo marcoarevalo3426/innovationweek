@@ -82,3 +82,11 @@
 .table-sort .ascending { transform: rotate(180deg); }
 .person-row > .person-actions { flex: 0 1 auto; margin-left: auto; display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 600px) { .person-row > .person-actions { flex-basis: 100%; justify-content: flex-end; padding-left: 0; } .person-row .person-actions .button { margin-left: 0; } }
+
+
+.like-controls { margin-top: 34px; }
+.like-controls .section-heading h2 { display: flex; align-items: center; gap: 9px; }
+.like-controls > .reset-card { margin-top: 24px; }
+.community-bar > div:nth-child(2) { flex-wrap: wrap; }
+.community-bar > div:nth-child(2) .status-pill { margin-left: 0; }
+@media (max-width: 600px) { .like-controls { margin-top: 28px; } }

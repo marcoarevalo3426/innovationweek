@@ -126,3 +126,14 @@ Administrators can confirm account deletion, including the account’s ideas, vo
 Manage ideas defaults to highest current-round votes, with Votes/Likes sort toggles and full-detail CSV export. Participation export respects the selected history scope and search. Exports require admin access and escape CSV text and spreadsheet formulas. The stricter sign-in policy accepts only letters and single separating periods before `@nepgroup.com`; the existing production bootstrap admin configuration passed a check for that policy without printing its addresses.
 
 63 tests passed, including CSV Unicode/multiline/quoting/formula handling, export authorization/order, dynamic submission caps under concurrent requests, account removal/file cleanup/session revocation, and simultaneous administrator deletion. Existing ideas remain when a cap is reduced. Admins retain their existing submission exemption; submission closure still blocks all new ideas.
+
+
+## Independent like schedule rollout — 4 November 2026
+
+Launch-template version **6** uses release `20261104-like-schedule-v6`; schema **4** adds independent like mode/start/end settings. Migration `004-like-schedule.sql` preserves all likes and defaults to open without an end date. It was run by the database owner after pinning the new launch template and before starting the new API. No extra database grants, environment changes or dependencies were required.
+
+Admin → **Voting & Like schedule** now contains separate voting and like forms. Closing likes blocks both like and unlike requests, enforced transactionally on the API; totals remain visible. Scheduled likes open and close automatically using server time. **Reset all likes** requires explicit confirmation, records an audit action, and preserves votes, rounds and schedules. Production reset was not used as a deployment test.
+
+The rollout stages and tests the release on port 3002, boots a fresh version-6 fleet node, drains the original instance through ASG standby, updates its source through SSM, and verifies matching source, schema, default like settings, runtime permissions and PostgreSQL health. The original pre-update source backup is `/var/backups/innovation-week-like/20261103T131110Z`. Rolling back older application code after this additive migration must retain the schema-4 `server/migrate.js` and migration file.
+
+Local validation: **67 native PostgreSQL tests passed**, plus production frontend build and isolated UI checks for saved dates, closed-like button states, reset cancellation and reset isolation. No stress-tested capacity claim is made.

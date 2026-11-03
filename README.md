@@ -65,7 +65,7 @@ Optional fictitious demo data can be added with `npm run seed:demo` before use; 
 | New submissions | Admins can accept ideas, set a closing deadline, stop submissions immediately or reopen them under **Admin → Idea submissions**. The closure applies to admins as well as ordinary users. |
 | Share/edit dialog | Only **X** and **Cancel** dismiss it. Outside clicks and Escape leave it open. Saving shows a confirmation without closing it, and disables resubmission. |
 
-The optional subheader countdown is controlled by **Admin → Voting & schedule → Show the countdown**. Turning it off does not hide the live countdown inside the voting panel. Before voting starts, disabling the welcome section shows **Voting Opens Soon** for a future scheduled opening, or the closed-status panel when no opening is scheduled.
+The optional subheader countdown is controlled by **Admin → Voting & Like schedule → Show the countdown**. Turning it off does not hide the live countdown inside the voting panel. Before voting starts, disabling the welcome section shows **Voting Opens Soon** for a future scheduled opening, or the closed-status panel when no opening is scheduled.
 
 ## What is included
 
@@ -78,7 +78,7 @@ The optional subheader countdown is controlled by **Admin → Voting & schedule 
 - Default two votes per person per voting round, configurable from 1–100. Each person can vote once per distinct idea. Clicking a voted idea again withdraws that vote while voting is open. Users can vote for their own ideas. Counts and permissions are enforced on the server, including concurrent requests.
 - Administrator controls: open/close voting immediately, configure its end time, schedule a start and end, change vote allowance, reset everyone’s voting round, and show an optional extra countdown below the main header. All co-admins have equal permissions. The final administrator cannot be removed.
 - Administrator CRUD for all ideas, with no administrative submission limit. The two-idea rule applies to ordinary users.
-- Independent top-three vote/like leaderboards and award banners. Awards require at least one vote/like; ties share the award. Top-three ties use the earliest creation time as a stable tiebreaker. Award counts update live; announcing an award does not freeze results. Close voting first for final vote results. Likes remain available.
+- Independent top-three vote/like leaderboards and award banners. Awards require at least one vote/like; ties share the award. Top-three ties use the earliest creation time as a stable tiebreaker. Award counts update live; announcing an award does not freeze results. Close voting for final vote results and close likes for final like results.
 - Persistent audit records, an append-only `data/audit.jsonl` file, paginated admin activity viewer and JSONL export. Records cover sign-in/code requests/failures, logout, idea detail views and mutations, likes, votes, user permission changes, settings, resets and audit access. Automatic background polling, input keystrokes and local search changes are not logged. Codes and session tokens are excluded from audit logs. Console delivery mode prints codes only for local development.
 - Fifteen-second background refresh and refresh when a window regains focus. Voting eligibility is checked on every server request; the browser countdown uses a server-time offset. Schedule boundaries trigger an additional immediate refresh. No cron process is required, and schedules survive restarts.
 
@@ -90,7 +90,7 @@ Before voting starts, the homepage shows the original **Big ideas. Brighter poss
 
 Once voting opens, the welcome automatically gives way to **Voting Open** and its countdown. When voting ends or an admin closes an active session, the **Voting Closed** panel appears. A new future schedule returns to the welcome section if enabled. Separate ballot-box illustrations accompany voting-status panels. When open, it counts down in days, hours, minutes and seconds to the configured voting end. When the welcome section is disabled, the **Voting Opens Soon** panel counts down to a future scheduled start instead. When its start/end date is configured, the panel shows a countdown independently of the optional header countdown.
 
-In **Admin → Voting & schedule**, choose **Open now** and enter **Voting ends**, or choose **Schedule** and enter both **Voting starts** and **Voting ends**. End time is required when opening voting through these controls. Voting closes automatically at the deadline, including when it was opened manually. Existing installations that already had voting open without an end date stay open; set the end time in Admin to enable their countdown. No closing date is invented during the database migration.
+In **Admin → Voting & Like schedule**, choose **Open now** and enter **Voting ends**, or choose **Schedule** and enter both **Voting starts** and **Voting ends**. End time is required when opening voting through these controls. Voting closes automatically at the deadline, including when it was opened manually. Existing installations that already had voting open without an end date stay open; set the end time in Admin to enable their countdown. No closing date is invented during the database migration.
 
 In **Admin → Idea submissions**, choose:
 
@@ -99,7 +99,7 @@ In **Admin → Idea submissions**, choose:
 - **Stop submissions** and save, or use **Stop submissions now**, for immediate closure.
 - **Reopen submissions now** to accept ideas again.
 
-All dates are entered in the browser’s local timezone, labeled in Admin, and stored as UTC timestamps. Submission deadlines are independent of voting dates. Closing submissions disables every new-idea control, including the admin’s add button. A submission form already open becomes disabled when its deadline arrives. The API also rejects late submissions, checking again after image processing, so an upload cannot bypass the deadline. Existing ideas remain editable/deletable, and likes remain available. The same rule applies to ordinary users and administrators.
+All dates are entered in the browser’s local timezone, labeled in Admin, and stored as UTC timestamps. Submission deadlines are independent of voting dates. Closing submissions disables every new-idea control, including the admin’s add button. A submission form already open becomes disabled when its deadline arrives. The API also rejects late submissions, checking again after image processing, so an upload cannot bypass the deadline. Existing ideas remain editable/deletable; likes follow their independent schedule. The same rule applies to ordinary users and administrators.
 
 The browser derives event states from server-adjusted time every second and refreshes at each boundary; server checks remain authoritative on every mutation. Existing databases receive additive columns for submission controls, the welcome preference (`show_welcome`, default `1`), and a voting-start marker (`voting_started_at`). The marker distinguishes an event that has not started from a manually closed active event. Ideas, users, likes, votes and existing event settings are preserved. New databases accept ideas by default.
 
@@ -272,14 +272,14 @@ The suite covers the full API workflow, development authentication isolation, vo
 
 The optional Playwright browser suite requires a running loopback PostgreSQL server and uses a separate schema. Install Chromium with `npx playwright install chromium`, then run `npm run test:e2e`. See its configuration for executable overrides. No tests should target production event tables.
 
-Current checks: **63 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.
+Current checks: **67 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.
 
 
 ### Editable footer link
 
 In **Admin → Footer link**, change the footer message, clickable text, and full HTTP/HTTPS URL, then choose **Save settings**. The default is “For more information, Click here” pointing to the NEP Confluence guide. The link opens in a new tab. Footer spacing is 100px on desktop, 60px on tablet (up to 1100px), and 40px on mobile (up to 600px).
 
-This release uses PostgreSQL schema version **3**. Existing installations must run `npm run db:migrate` as the database migration owner before starting the new API. Migration `002-footer-link.sql` only adds footer settings and preserves event data. The runtime role continues to use its existing settings-table permissions.
+This release uses PostgreSQL schema version **4**. Existing installations must run `npm run db:migrate` as the database migration owner before starting the new API. Migration `002-footer-link.sql` only adds footer settings and preserves event data. The runtime role continues to use its existing settings-table permissions.
 
 
 ### Admin activity and participation
@@ -300,4 +300,20 @@ The activity-log update used schema version 2; the current schema requirements a
 - **Admin → Idea submissions → Maximum ideas per person** changes the regular-user cap from 1 to 100; default **2**. Reducing it retains existing ideas and prevents additional submissions until the user is below the cap. Administrators retain their existing ability to manage additional ideas. Global submission closure still applies to everyone.
 - Sign-in accepts only ASCII letters and single separating periods before the exact `@nepgroup.com` domain. Numbers, other punctuation, consecutive periods, and leading/trailing periods are rejected. Letter case is normalized. Email-code verification remains required in production.
 
-Apply migration **003-submission-limit.sql** as the migration owner (`npm run db:migrate`) before starting this API. The database is schema version **3**. CSV exports require administrator access, include a UTF-8 BOM, quote multiline/Unicode text, and neutralize spreadsheet formulas in user-supplied cells. No production account removal is performed as a deployment test.
+Apply migration **003-submission-limit.sql** as the migration owner (`npm run db:migrate`) before starting this API. The database is schema version **4**. CSV exports require administrator access, include a UTF-8 BOM, quote multiline/Unicode text, and neutralize spreadsheet formulas in user-supplied cells. No production account removal is performed as a deployment test.
+
+
+### Independent like scheduling and reset
+
+In **Admin → Voting & Like schedule**, the **Likes, on your terms.** section saves independently of voting:
+
+- **Close likes** freezes new likes and unlikes, keeping existing totals visible.
+- **Open likes now** opens immediately. An optional **Likes end** date closes likes automatically; leave it blank to keep likes open until manually closed.
+- **Schedule likes** requires a start and end, entered in the administrator’s local timezone and stored in UTC. Likes open at the start and close at the end, with no cron job needed.
+- **Save like settings** applies these controls without changing voting settings. Like buttons are disabled while closed or awaiting the scheduled start; the API enforces the same rule for all users, including administrators.
+
+The separate **A fresh start for likes. → Reset all likes** button opens a confirmation. Confirming permanently clears current likes across all ideas and records `admin.likes_reset`; it leaves votes, voting rounds and schedules unchanged. Users can like again whenever likes are open. Cancelling changes nothing. Export idea/participation CSVs first if you need to keep the current totals.
+
+Apply **004-like-schedule.sql** through `npm run db:migrate` as the migration owner before starting the new API. It adds `likes_mode` (default `open`), `likes_starts_at` and `likes_ends_at` to settings, preserves all existing likes, and brings the schema to **4**. Runtime settings-table grants already cover these columns. SQLite import and the AWS schema export include the same defaults. No production likes are reset during deployment.
+
+Verification covers schedule boundaries, independent vote/like controls, permissions, frozen likes/unlikes, confirmed reset isolation and migration of existing likes. The isolated UI preview also checked date persistence and both cancellation and confirmation of reset.

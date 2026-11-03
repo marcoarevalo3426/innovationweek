@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getVotingStatus, getSubmissionStatus, getHomepageHero } from '../shared/event-state.js';
+import { getVotingStatus, getSubmissionStatus, getHomepageHero, getLikeStatus } from '../shared/event-state.js';
 
 test('voting closes at the exact deadline, for immediate and scheduled opening',()=>{
   const start=Date.parse('2026-11-01T00:00:00Z'),end=start+10000;
@@ -40,3 +40,15 @@ test('submission closure is independent of voting and applies at the exact deadl
   assert.equal(getSubmissionStatus({submission_mode:'scheduled',submission_ends_at:null},end),'closed');
 });
 
+
+
+test('likes have independent open/closed status and exact scheduled boundaries',()=>{
+ const start=Date.parse('2026-11-01T00:00:00Z'),end=start+10000;
+ const s={likes_mode:'scheduled',likes_starts_at:new Date(start).toISOString(),likes_ends_at:new Date(end).toISOString(),mode:'closed'};
+ assert.equal(getLikeStatus({},start),'open');
+ assert.equal(getLikeStatus(s,start-1),'upcoming');assert.equal(getLikeStatus(s,start),'open');assert.equal(getLikeStatus(s,end-1),'open');assert.equal(getLikeStatus(s,end),'closed');
+ assert.equal(getLikeStatus({...s,likes_mode:'closed'},start),'closed');
+ assert.equal(getLikeStatus({...s,likes_mode:'open'},end),'closed');assert.equal(getLikeStatus({...s,likes_mode:'open',likes_ends_at:null},end),'open');
+ assert.equal(getLikeStatus({...s,likes_ends_at:s.likes_starts_at},start),'closed');assert.equal(getLikeStatus({...s,likes_starts_at:'invalid'},start),'closed');
+ assert.equal(getVotingStatus(s,start),'closed');
+});

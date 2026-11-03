@@ -26,3 +26,15 @@ export function getHomepageHero(settings, now = Date.now()) {
   const beforeVoting = status === 'upcoming' || !started;
   return beforeVoting && settings.show_welcome !== 0 ? 'welcome' : 'voting';
 }
+
+
+export function getLikeStatus(settings, now = Date.now()) {
+  const mode = settings.likes_mode ?? 'open';
+  const end = Date.parse(settings.likes_ends_at);
+  if (mode === 'open') return Number.isFinite(end) && now >= end ? 'closed' : 'open';
+  if (mode !== 'scheduled') return 'closed';
+  const start = Date.parse(settings.likes_starts_at);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 'closed';
+  if (now < start) return 'upcoming';
+  return now < end ? 'open' : 'closed';
+}

@@ -199,6 +199,47 @@ test('Full local API workflow and security rules',async t=>{
    assert.equal((await request('/admin/participation?download=1',{client:'alice'})).status,403);
 
  });
+ await t.test('like schedules are independent of voting and closing freezes likes and unlikes for everyone',async()=>{
+   const patch=body=>request('/admin/settings',{client:'admin',method:'PATCH',body});
+   const before=(await request('/ideas',{client:'alice'})).data.settings;
+   assert.equal(before.likes_mode,'open');assert.equal(before.likes_status,'open');
+   assert.equal((await request('/admin/settings',{client:'alice',method:'PATCH',body:{likes_mode:'closed'}})).status,403);
+   assert.equal((await patch({likes_mode:'closed'})).status,200);
+   const count=(await database.pool.query('SELECT COUNT(*) AS n FROM likes')).rows[0].n;
+   for(const client of ['alice','bob','admin'])assert.equal((await request(`/ideas/${third.id}/like`,{client,method:'POST'})).status,409);
+   assert.equal((await database.pool.query('SELECT COUNT(*) AS n FROM likes')).rows[0].n,count);
+   const now=Date.now(),start=new Date(now+60000).toISOString(),end=new Date(now+120000).toISOString();
+   for(const body of [{likes_mode:'invalid'},{likes_mode:'scheduled',likes_starts_at:null,likes_ends_at:end},{likes_mode:'scheduled',likes_starts_at:start,likes_ends_at:start},{likes_ends_at:'invalid'}])assert.equal((await patch(body)).status,400);
+   assert.equal((await patch({likes_mode:'scheduled',likes_starts_at:start,likes_ends_at:end})).status,200);
+   assert.equal((await request('/ideas',{client:'bob'})).data.settings.likes_status,'upcoming');
+   assert.equal((await request(`/ideas/${third.id}/like`,{client:'bob',method:'POST'})).status,409);
+   await patch({likes_starts_at:new Date(now-60000).toISOString()});
+   assert.equal((await request('/ideas',{client:'bob'})).data.settings.likes_status,'open');
+   assert.equal((await request(`/ideas/${third.id}/like`,{client:'bob',method:'POST'})).status,200);
+   assert.equal((await request(`/ideas/${third.id}/like`,{client:'bob',method:'POST'})).status,200);
+   await patch({likes_starts_at:new Date(now-120000).toISOString(),likes_ends_at:new Date(now-60000).toISOString()});
+   const after=(await request('/ideas',{client:'alice'})).data.settings;assert.equal(after.likes_status,'closed');
+   for(const key of ['mode','starts_at','ends_at','max_votes','round'])assert.equal(after[key],before[key]);
+   assert.equal((await request(`/ideas/${third.id}/like`,{client:'bob',method:'POST'})).status,409);
+   await patch({show_timer:before.show_timer?0:1});assert.equal((await request('/ideas',{client:'alice'})).data.settings.likes_mode,'scheduled');
+ });
+ await t.test('like reset requires admin confirmation, preserves votes/settings and permits new likes after reopening',async()=>{
+   const snapshot=(await request('/ideas',{client:'admin'})).data.settings;
+   const votes=(await database.pool.query('SELECT * FROM votes ORDER BY user_id,idea_id,round')).rows;
+   const n=(await database.pool.query('SELECT COUNT(*) AS n FROM likes')).rows[0].n;assert.ok(n>0);
+   assert.equal((await request('/admin/reset-likes',{client:'alice',method:'POST',body:{confirmed:true}})).status,403);
+   assert.equal((await request('/admin/reset-likes',{client:'admin',method:'POST',body:{}})).status,400);
+   assert.equal((await database.pool.query('SELECT COUNT(*) AS n FROM likes')).rows[0].n,n);
+   const result=await request('/admin/reset-likes',{client:'admin',method:'POST',body:{confirmed:true}});assert.equal(result.status,200);assert.equal(result.data.cleared,n);
+   const gallery=(await request('/ideas',{client:'bob'})).data;assert.ok(gallery.ideas.every(i=>i.likes===0&&!i.liked));assert.equal(gallery.settings.likes_status,'closed');
+   assert.deepEqual((await database.pool.query('SELECT * FROM votes ORDER BY user_id,idea_id,round')).rows,votes);
+   for(const key of ['mode','starts_at','ends_at','max_votes','round','likes_mode','likes_starts_at','likes_ends_at'])assert.equal(gallery.settings[key],snapshot[key]);
+   assert.equal((await request(`/ideas/${third.id}/like`,{client:'bob',method:'POST'})).status,409);
+   await request('/admin/settings',{client:'admin',method:'PATCH',body:{likes_mode:'open',likes_ends_at:null}});
+   assert.equal((await request(`/ideas/${third.id}/like`,{client:'bob',method:'POST'})).status,200);
+   assert.equal((await database.pool.query('SELECT COUNT(*) AS n FROM likes')).rows[0].n,1);
+   assert.ok((await request('/admin/audit',{client:'admin'})).data.rows.some(r=>r.action==='admin.likes_reset'));
+ });
  await t.test('clearing logs requires admin and explicit confirmation and preserves all event data',async()=>{
    const counts=async()=>{const result={};for(const table of ['users','ideas','likes','votes'])result[table]=(await database.pool.query(`SELECT COUNT(*) AS n FROM ${table}`)).rows[0].n;return result;};
    const before=await counts();const oldCount=(await database.pool.query('SELECT COUNT(*) AS n FROM audit')).rows[0].n;

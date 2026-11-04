@@ -30,7 +30,7 @@ async function fixture(t) {
     return signed;
   }
   function idea(title) {
-    const body=new FormData();for(const [key,value] of Object.entries({title,problem:'Problem',solution:'Solution',skills:'Engineering'}))body.set(key,value);return body;
+    const body=new FormData();for(const [key,value] of Object.entries({full_name:'Alex Example',title,problem:'Problem',solution:'Solution',skills:'Engineering'}))body.set(key,value);return body;
   }
   return {database,dir,request,login,idea};
 }

@@ -47,7 +47,7 @@ test('two API processes share email verification, sessions, limits and compresse
   const cookie=signed.headers.get('set-cookie').split(';')[0];
   for(let n=0;n<2;n++)assert.equal((await (await request(n,'/auth/me',null,cookie)).json()).user.email,email);
   assert.equal((await request(0,'/auth/verify',{email,code:sent.developmentCode})).status,400);
-  const form=new FormData();for(const [key,value] of Object.entries({title:'Shared idea',problem:'A'.repeat(3000),solution:'B'.repeat(3000),skills:'Engineering'}))form.set(key,value);
+  const form=new FormData();for(const [key,value] of Object.entries({full_name:'Alex Example',title:'Shared idea',problem:'A'.repeat(3000),solution:'B'.repeat(3000),skills:'Engineering'}))form.set(key,value);
   const created=await fetch(nodes[0]+'/api/ideas',{method:'POST',headers:{'X-Requested-With':'InnovationWeek',Cookie:cookie},body:form});assert.equal(created.status,201);
   const response=await fetch(nodes[1]+'/api/ideas',{headers:{Cookie:cookie,'Accept-Encoding':'gzip'}});
   assert.equal(response.headers.get('content-encoding'),'gzip');assert.match(response.headers.get('cache-control'),/private.*no-store/);

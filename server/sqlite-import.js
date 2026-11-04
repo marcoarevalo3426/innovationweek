@@ -7,7 +7,7 @@ import { checkSchema } from './migrate.js';
 
 const columns = {
   users: ['id','email','is_admin','created_at'],
-  ideas: ['id','user_id','title','problem','solution','skills','image','created_at','updated_at'],
+  ideas: ['full_name','id','user_id','title','problem','solution','skills','image','created_at','updated_at'],
   settings: ['id','mode','starts_at','ends_at','max_votes','round','show_timer','top_votes','top_likes','innovation_award','peoples_award','submission_mode','submission_ends_at','show_welcome','voting_started_at','footer_text','footer_link_text','footer_url','max_ideas','likes_mode','likes_starts_at','likes_ends_at'],
   likes: ['user_id','idea_id'],
   votes: ['user_id','idea_id','round'],
@@ -62,7 +62,7 @@ export async function importSQLite({ source, pool, targetDir, dryRun = false }) 
     await client.query('SELECT pg_advisory_xact_lock(731901,1)');
     // The importer runs during downtime. Refuse all existing application rows,
     // including audit-only/local-admin activity and previously imported data.
-    for (const table of ['users','ideas','likes','votes','audit','challenges','sessions','data_imports']) {
+    for (const table of ['users','ideas','likes','votes','audit','challenges','sessions','data_imports','feedback']) {
       const result = await client.query(`SELECT COUNT(*) AS n FROM ${table}`);
       if (Number(result.rows[0].n)) throw new Error(`Target is not empty (${table}). Import refused; no rows were replaced.`);
     }

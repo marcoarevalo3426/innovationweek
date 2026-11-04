@@ -137,3 +137,14 @@ Admin → **Voting & Like schedule** now contains separate voting and like forms
 The rollout stages and tests the release on port 3002, boots a fresh version-6 fleet node, drains the original instance through ASG standby, updates its source through SSM, and verifies matching source, schema, default like settings, runtime permissions and PostgreSQL health. The original pre-update source backup is `/var/backups/innovation-week-like/20261103T131110Z`. Rolling back older application code after this additive migration must retain the schema-4 `server/migrate.js` and migration file.
 
 Local validation: **67 native PostgreSQL tests passed**, plus production frontend build and isolated UI checks for saved dates, closed-like button states, reset cancellation and reset isolation. No stress-tested capacity claim is made.
+
+
+## Feedback, full names and final votes rollout — 5 November 2026
+
+Launch-template version **7** uses `20261105-feedback-v7`; schema **5** adds nullable full names for existing ideas and the feedback table/indexes. The migration owner granted the runtime role `SELECT, INSERT` on `public.feedback`. No event votes or likes were reset or migrated into new rounds. The existing storage marker stays fixed for compatibility; global reset now deletes votes instead of creating a new round.
+
+The staged API and fresh fleet node passed matching-source, schema, full-name column, feedback permissions and PostgreSQL health checks. The original instance was drained through ASG standby, updated through SSM and restarted successfully. Its pre-update backup is `/var/backups/innovation-week-feedback/20261104T205830Z`. A rollback to older application code must retain schema-5 `server/migrate.js` and `005-feedback-and-names.sql`.
+
+This release adds user feedback with optional categories, trusted sender email and a centered confirmation; admin filtering/CSV export; required full names on idea create/edit; irreversible user votes; and confirmed per-user vote/like clearing. The backend preserves current counts across schedule changes. Security checks cover parameterized SQL, bounded/typed text, prototype-key rejection, immutable/concurrent votes, CSV formula safety, CSRF and admin permissions. Amplify reads the frontend security headers from root `customHttp.yml`.
+
+Validation: **75 native PostgreSQL tests passed**, production build passed, and browser checks used an isolated local database for feedback persistence, category filters, reset cancellation/correction, names/emails, locked vote buttons and mobile dialog layout. No production reset endpoint, recipient email or synthetic feedback submission was used for verification.

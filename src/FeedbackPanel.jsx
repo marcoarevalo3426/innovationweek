@@ -1,0 +1,13 @@
+import React, {useEffect,useState} from 'react';
+import {Download,LoaderCircle} from 'lucide-react';
+import {api} from './api-client.js';
+
+export default function FeedbackPanel(){
+  const [category,setCategory]=useState('all'),[offset,setOffset]=useState(0),[refresh,setRefresh]=useState(0);
+  const [data,setData]=useState({rows:[],total:0}),[busy,setBusy]=useState(true),[error,setError]=useState('');
+  useEffect(()=>{let active=true;setBusy(true);setError('');api(`/admin/feedback?category=${category}&offset=${offset}`).then(result=>{if(active)setData(result);}).catch(error=>{if(active)setError(error.message);}).finally(()=>{if(active)setBusy(false);});return()=>{active=false;};},[category,offset,refresh]);
+  return <div className="admin-card feedback-admin"><div className="section-heading"><div><h2>Your community, heard.</h2><p>Feedback to help improve the website and Innovation Week.</p></div><div className="activity-actions"><button className="button secondary" disabled={busy} onClick={()=>setRefresh(value=>value+1)}>Refresh feedback</button><a className="button secondary" href="/api/admin/feedback?download=1" download><Download size={16}/> Export all feedback</a></div></div>
+    <label className="feedback-filter" htmlFor="feedback-category">Category<select id="feedback-category" value={category} onChange={event=>{setCategory(event.target.value);setOffset(0);}}><option value="all">All</option><option value="general">General feedback</option><option value="website">Website feedback</option></select></label>
+    {error?<p className="form-error" role="alert">{error}</p>:busy?<p className="feedback-loading" role="status"><LoaderCircle size={18} className="spin"/> Loading feedback…</p>:<><div className="table-wrap"><table><thead><tr><th>Feedback</th><th>From</th><th>Category</th><th>Date</th></tr></thead><tbody>{data.rows.map(row=><tr key={row.id}><td className="feedback-text">{row.feedback}</td><td>{row.email}</td><td>{row.category==='general'?'General feedback':'Website feedback'}</td><td>{new Date(row.created_at).toLocaleString()}</td></tr>)}</tbody></table>{!data.rows.length&&<p className="table-empty">No feedback in this category yet.</p>}</div><div className="feedback-pagination"><span>{data.total?`${offset+1}–${Math.min(offset+50,data.total)} of ${data.total}`:'0 feedback entries'}</span><button className="button secondary" disabled={!offset} onClick={()=>setOffset(value=>Math.max(0,value-50))}>Previous</button><button className="button secondary" disabled={offset+50>=data.total} onClick={()=>setOffset(value=>value+50)}>Next</button></div></>}
+  </div>;
+}

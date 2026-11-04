@@ -1,3 +1,5 @@
+import { mountFeedback } from './feedback.js';
+import { textValue, fullName, isRecord, hasUnsafeKeys } from '../shared/input-validation.js';
 import { getLikeStatus } from '../shared/event-state.js';
 import { toCsv } from '../shared/csv.js';
 import { isFooterUrl } from '../shared/footer-settings.js';
@@ -78,8 +80,13 @@ app.use('/api', (_req, res, next) => {
   next();
 });
 app.use(express.json({
-  limit: '20kb'
+  limit: '64kb'
 }));
+app.use((req, res, next) => {
+  if (req.body === undefined && !req.is('multipart/form-data')) req.body = {};
+  if (req.body !== undefined && (!isRecord(req.body) || hasUnsafeKeys(req.body))) return res.status(400).json({error:'Enter a valid request object.'});
+  next();
+});
 app.use(cookieParser());
 // Custom same-origin header plus origin validation blocks cross-site cookie-authenticated mutations.
 app.use('/api', async (req, res, next) => {
@@ -246,6 +253,7 @@ app.post('/api/auth/logout', auth, async (req, res) => {
   });
 });
 app.use('/api', auth);
+app.param('id', (req, res, next, id) => /^[A-Za-z0-9_-]{1,128}$/.test(id) ? next() : next(error(400, 'Invalid record identifier.')));
 const ideaQuery = `SELECT i.*,u.email AS author,(SELECT COUNT(*) FROM likes l WHERE l.idea_id=i.id) AS likes,(SELECT COUNT(*) FROM votes v WHERE v.idea_id=i.id AND v.round=$1) AS votes,EXISTS(SELECT 1 FROM likes l WHERE l.idea_id=i.id AND l.user_id=$2) AS liked,EXISTS(SELECT 1 FROM votes v WHERE v.idea_id=i.id AND v.user_id=$3 AND v.round=$4) AS voted FROM ideas i JOIN users u ON i.user_id=u.id`;
 app.get('/api/ideas', async (req, res) => {
   const s = await settings();
@@ -282,15 +290,16 @@ const upload = multer({
   limits: {
     fileSize: 2 * 1024 * 1024,
     files: 1,
-    fields: 6,
+    fields: 7,
     fieldSize: 12000
   }
 }).single('image');
 function fields(body) {
-  const out = {};
-  for (const [key, max] of [['title', 120], ['problem', 4000], ['solution', 4000], ['skills', 1000]]) {
-    if (typeof body[key] !== 'string' || !body[key].trim() || body[key].trim().length > max) throw error(400, `${key[0].toUpperCase() + key.slice(1)} is required and must be ${max} characters or fewer.`);
-    out[key] = body[key].trim();
+  if (!isRecord(body) || hasUnsafeKeys(body) || Object.keys(body).some(key => !['full_name','title','problem','solution','skills','removeImage'].includes(key))) throw error(400, 'Invalid idea fields.');
+  if (body.removeImage !== undefined && !['true','false'].includes(body.removeImage)) throw error(400, 'Invalid image removal option.');
+  const out = {full_name: fullName(body.full_name)};
+  for (const [key, max] of [['title',120],['problem',4000],['solution',4000],['skills',1000]]) {
+    out[key] = textValue(body[key], {label:key === 'title' ? 'Innovation title' : key, max, multiline:key !== 'title'});
   }
   return out;
 }
@@ -337,7 +346,7 @@ app.post('/api/ideas', requireSubmissionsOpen, upload, async (req, res) => {
       if (!req.user.is_admin && (await get("SELECT COUNT(*) AS n FROM ideas WHERE user_id=$1", req.user.id)).n >= s.max_ideas) throw error(409, `You have reached the limit of ${s.max_ideas} submitted idea${s.max_ideas === 1 ? '' : 's'}.`);
       const id = randomUUID();
       const now = new Date().toISOString();
-      await run("INSERT INTO ideas(id,user_id,title,problem,solution,skills,image,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)", id, req.user.id, f.title, f.problem, f.solution, f.skills, image, now, now);
+      await run("INSERT INTO ideas(id,user_id,title,problem,solution,skills,image,created_at,updated_at,full_name) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", id, req.user.id, f.title, f.problem, f.solution, f.skills, image, now, now, f.full_name);
       await audit(req.user.email, 'idea.created', {
         id,
         title: f.title
@@ -358,7 +367,7 @@ app.put('/api/ideas/:id', upload, async (req, res) => {
     const original = await transaction(async () => {
       const original = await ownIdea(req);
       const image = fresh || (req.body.removeImage === 'true' ? null : original.image);
-      await run("UPDATE ideas SET title=$1,problem=$2,solution=$3,skills=$4,image=$5,updated_at=$6 WHERE id=$7", f.title, f.problem, f.solution, f.skills, image, new Date().toISOString(), original.id);
+      await run("UPDATE ideas SET title=$1,problem=$2,solution=$3,skills=$4,image=$5,updated_at=$6,full_name=$8 WHERE id=$7", f.title, f.problem, f.solution, f.skills, image, new Date().toISOString(), original.id, f.full_name);
       await audit(req.user.email, 'idea.updated', {
         id: original.id
       });
@@ -408,56 +417,66 @@ app.post('/api/ideas/:id/vote', async (req, res) => {
     if ((await votingState(s)) !== 'open') throw error(409, 'Voting is currently closed.');
     if (!(await get("SELECT id FROM ideas WHERE id=$1", req.params.id))) throw error(404, 'Idea not found.');
     const voted = await get("SELECT * FROM votes WHERE user_id=$1 AND idea_id=$2 AND round=$3", req.user.id, req.params.id, s.round);
-    if (voted) await run("DELETE FROM votes WHERE user_id=$1 AND idea_id=$2 AND round=$3", req.user.id, req.params.id, s.round);else {
-      if ((await get("SELECT COUNT(*) AS n FROM votes WHERE user_id=$1 AND round=$2", req.user.id, s.round)).n >= s.max_votes) throw error(409, `You can cast a maximum of ${s.max_votes} votes. Withdraw a vote to choose another idea.`);
-      await run("INSERT INTO votes(user_id,idea_id,round) VALUES($1,$2,$3)", req.user.id, req.params.id, s.round);
-    }
-    await audit(req.user.email, voted ? 'vote.withdrawn' : 'vote.cast', {
-      id: req.params.id,
-      round: s.round
-    });
+    if (voted) throw error(409, 'Your vote is already recorded and cannot be withdrawn. Contact an administrator if you need help.');
+    if ((await get('SELECT COUNT(*) AS n FROM votes WHERE user_id=$1 AND round=$2', req.user.id, s.round)).n >= s.max_votes) throw error(409, `You can cast a maximum of ${s.max_votes} votes.`);
+    await run('INSERT INTO votes(user_id,idea_id,round) VALUES($1,$2,$3)', req.user.id, req.params.id, s.round);
+    await audit(req.user.email, 'vote.cast', {id:req.params.id});
   });
   res.json({
     ok: true
   });
 });
 app.use('/api/admin', admin);
+mountFeedback(app, rateLimit({
+  ...sharedStore('feedback'), keyGenerator:req=>req.user.id, windowMs:60000, limit:5, skipFailedRequests:true,
+  standardHeaders:'draft-8',legacyHeaders:false,message:{error:'Please wait a minute before sharing more feedback.'}
+}));
 const displayPerson = email => email.split('@')[0].split(/[._-]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
 app.get('/api/admin/ideas/export', async (req, res) => {
   const sort = req.query.sort || 'votes', direction = req.query.direction || 'desc';
   if (!['votes', 'likes'].includes(sort) || !['asc', 'desc'].includes(direction)) throw error(400, 'Choose a valid export sort order.');
   const s = await settings();
   const rows = await all(ideaQuery + " WHERE i.user_id <> 'nep-monitor-synthetic-v1' ORDER BY " + sort + ' ' + direction.toUpperCase() + ',i.title,i.id', s.round, req.user.id, req.user.id, s.round);
-  await audit(req.user.email, 'admin.ideas_exported', {round:s.round,sort,direction,count:rows.length});
+  await audit(req.user.email, 'admin.ideas_exported', {sort,direction,count:rows.length});
   res.attachment('innovation-ideas.csv').type('text/csv; charset=utf-8').send(toCsv(
-    ['Idea ID','Innovation title','Submitted by',`Votes (round ${s.round})`,'Likes','Problem you want to solve','Your idea for solving it','Skills of people you’d like on your team','Submitted at','Updated at','Image'],
-    rows.map(row => [row.id,row.title,row.author,row.votes,row.likes,row.problem,row.solution,row.skills,row.created_at,row.updated_at,row.image || ''])
+    ['Idea ID','Innovation title','Full name','Submitted by','Votes','Likes','Problem you want to solve','Your idea for solving it','Skills of people you’d like on your team','Submitted at','Updated at','Image'],
+    rows.map(row => [row.id,row.title,row.full_name,row.author,row.votes,row.likes,row.problem,row.solution,row.skills,row.created_at,row.updated_at,row.image || ''])
   ));
 });
 app.get('/api/admin/participation', async (req, res) => {
-  const scope = req.query.scope || 'current';
-  if (!['current', 'all'].includes(scope)) throw error(400, 'Choose the current round or all rounds.');
+  // The legacy storage marker stays fixed; only active votes are reported.
   const round = (await settings()).round;
-  // Aggregate independently so joining likes and votes never multiplies counts.
   let rows = await all(`WITH vote_counts AS (
-      SELECT user_id,COUNT(DISTINCT idea_id) AS voted FROM votes WHERE ($1::boolean OR round=$2) GROUP BY user_id
+      SELECT user_id,COUNT(*) AS voted FROM votes WHERE round=$1 GROUP BY user_id
     ), like_counts AS (
-      SELECT user_id,COUNT(DISTINCT idea_id) AS liked FROM likes GROUP BY user_id
+      SELECT user_id,COUNT(*) AS liked FROM likes GROUP BY user_id
     ) SELECT u.id,u.email,COALESCE(v.voted,0) AS voted,COALESCE(l.liked,0) AS liked
       FROM users u LEFT JOIN vote_counts v ON v.user_id=u.id LEFT JOIN like_counts l ON l.user_id=u.id
-      WHERE LOWER(BTRIM(u.email)) <> $3 AND (COALESCE(v.voted,0)>0 OR COALESCE(l.liked,0)>0)
-      ORDER BY LOWER(u.email),u.id`, scope === 'all', round, SYNTHETIC_ACTOR);
+      WHERE LOWER(BTRIM(u.email)) <> $2 AND (COALESCE(v.voted,0)>0 OR COALESCE(l.liked,0)>0)
+      ORDER BY LOWER(u.email),u.id`, round, SYNTHETIC_ACTOR);
   if (req.query.search !== undefined) {
-    if (typeof req.query.search !== 'string' || req.query.search.length > 254) throw error(400, 'Participant search must be 254 characters or fewer.');
-    const search = req.query.search.toLowerCase();
-    rows = rows.filter(row => (displayPerson(row.email) + ' ' + row.email).toLowerCase().includes(search));
+    const search = textValue(req.query.search, {label:'Participant search',max:254,optional:true,multiline:false}).toLowerCase();
+    rows = rows.filter(row => (displayPerson(row.email)+' '+row.email).toLowerCase().includes(search));
   }
-  await audit(req.user.email, req.query.download ? 'admin.participation_exported' : 'admin.participation_viewed', {scope,round,count:rows.length});
+  await audit(req.user.email, req.query.download ? 'admin.participation_exported' : 'admin.participation_viewed', {count:rows.length});
   if (req.query.download) return res.attachment('innovation-participation.csv').type('text/csv; charset=utf-8').send(toCsv(
-    ['Name','Email',scope === 'all' ? 'Ideas voted for (all rounds)' : `Ideas voted for (round ${round})`,'Ideas liked'],
-    rows.map(row => [displayPerson(row.email),row.email,row.voted,row.liked])
+    ['Name','Email','Ideas voted for','Ideas liked'], rows.map(row=>[displayPerson(row.email),row.email,row.voted,row.liked])
   ));
-  res.json({rows,round,scope});
+  res.json({rows});
+});
+for (const category of ['votes','likes']) app.post('/api/admin/users/:id/reset-'+category, async (req, res) => {
+  if (req.body?.confirmed !== true) throw error(400, 'Confirm before clearing this user’s '+category+'.');
+  const cleared = await transaction(async () => {
+    const actor = await get('SELECT is_admin FROM users WHERE id=$1', req.user.id);
+    if (!actor || (!localAuth && !actor.is_admin)) throw error(403, 'Administrator access required.');
+    const user = await get('SELECT id,email FROM users WHERE id=$1', req.params.id);
+    if (!user) throw error(404, 'User not found.');
+    // category comes only from this fixed server-side list, never request data.
+    const result = await run('DELETE FROM '+category+' WHERE user_id=$1', user.id);
+    await audit(req.user.email, 'admin.user_'+category+'_reset', {email:user.email,cleared:result.rowCount});
+    return result.rowCount;
+  });
+  res.json({ok:true,cleared});
 });
 app.get('/api/admin/users', async (req, res) => {
   await audit(req.user.email, 'admin.users_viewed');
@@ -483,7 +502,7 @@ app.delete('/api/admin/users/:id', async (req, res) => {
   if (req.body?.confirmed !== true) throw error(400, 'Confirm before deleting an account.');
   const removedImages = await transaction(async () => {
     const actor = await get('SELECT is_admin FROM users WHERE id=$1', req.user.id);
-    if (!actor?.is_admin) throw error(403, 'Administrator access required.');
+    if (!actor || (!localAuth && !actor.is_admin)) throw error(403, 'Administrator access required.');
     const user = await get('SELECT * FROM users WHERE id=$1', req.params.id);
     if (!user) throw error(404, 'User not found.');
     if (user.id === req.user.id) throw error(409, 'You cannot delete your own account. Ask another administrator.');
@@ -514,7 +533,7 @@ app.patch('/api/admin/settings', async (req, res) => {
     };
     for (const [key, limit] of [['footer_text', 200], ['footer_link_text', 80]]) {
       if (typeof s[key] !== 'string' || !s[key].trim() || s[key].trim().length > limit) throw error(400, `Footer ${key === 'footer_text' ? 'message' : 'link text'} must be between 1 and ${limit} characters.`);
-      s[key] = s[key].trim();
+      s[key] = textValue(s[key], {label:'Footer text',max:limit,multiline:false});
     }
     if (typeof s.footer_url !== 'string' || !isFooterUrl(s.footer_url.trim())) throw error(400, 'Enter a full HTTP or HTTPS footer URL without embedded credentials.');
     s.footer_url = s.footer_url.trim();
@@ -545,15 +564,13 @@ app.patch('/api/admin/settings', async (req, res) => {
   });
 });
 app.post('/api/admin/reset-votes', async (req, res) => {
-  await transaction(async () => {
-    await run("UPDATE settings SET round=round+1 WHERE id=1");
-    await audit(req.user.email, 'admin.votes_reset', {
-      round: (await settings()).round
-    });
+  if (req.body?.confirmed !== true) throw error(400, 'Confirm before resetting all votes.');
+  const cleared = await transaction(async () => {
+    const result = await run('DELETE FROM votes');
+    await audit(req.user.email, 'admin.votes_reset', {cleared:result.rowCount});
+    return result.rowCount;
   });
-  res.json({
-    ok: true
-  });
+  res.json({ok:true,cleared});
 });
 app.post('/api/admin/reset-likes', async (req, res) => {
   if (req.body?.confirmed !== true) throw error(400, 'Confirm before resetting all likes.');
@@ -623,7 +640,7 @@ app.use((err, req, res, next) => {
   if (status === 500) console.error(err);
   if (res.headersSent) return res.destroy();
   res.status(status).json({
-    error: err.code === 'LIMIT_FILE_SIZE' ? 'Image must be 2 MB or smaller.' : status === 500 ? 'Something went wrong. Please try again.' : err.message
+    error: err.type === 'entity.parse.failed' ? 'Invalid JSON request body.' : err.type === 'entity.too.large' ? 'Request is too large.' : err.code === 'LIMIT_FILE_SIZE' ? 'Image must be 2 MB or smaller.' : status === 500 ? 'Something went wrong. Please try again.' : err.message
   });
 });
 const port = Number(process.env.PORT || 3001);

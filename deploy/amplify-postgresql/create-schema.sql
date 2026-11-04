@@ -1,5 +1,5 @@
--- NEP Innovation Week: exact PostgreSQL schema, release schema version 4.
--- Generated from server/migrations/001-postgresql.sql , 002-footer-link.sql , 003-submission-limit.sql and 004-like-schedule.sql; includes the migration
+-- NEP Innovation Week: exact PostgreSQL schema, release schema version 5.
+-- Generated from server/migrations/001-postgresql.sql , 002-footer-link.sql , 003-submission-limit.sql 004-like-schedule.sql and 005-feedback-and-names.sql; includes the migration
 -- metadata required by server/migrate.js. Contains no existing user data.
 -- Run ONCE in an EMPTY innovation_week database using its migration owner:
 -- psql "host=... dbname=innovation_week ... sslmode=verify-full ..." -W -v ON_ERROR_STOP=1 -f create-schema.sql
@@ -103,9 +103,25 @@ ALTER TABLE settings
   ADD COLUMN likes_starts_at TEXT,
   ADD COLUMN likes_ends_at TEXT;
 
+-- Existing ideas remain readable; their authors can supply a name when editing.
+ALTER TABLE ideas ADD COLUMN full_name TEXT
+  CHECK (full_name IS NULL OR (length(btrim(full_name)) BETWEEN 1 AND 120));
+
+CREATE TABLE feedback (
+  id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  email TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (category IN ('general','website')),
+  feedback TEXT NOT NULL CHECK (length(btrim(feedback)) BETWEEN 1 AND 4000),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX idx_feedback_created ON feedback(created_at DESC,id);
+CREATE INDEX idx_feedback_category_created ON feedback(category,created_at DESC,id);
+
 INSERT INTO schema_migrations(version,applied_at)
 VALUES (1, to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 INSERT INTO schema_migrations(version,applied_at) VALUES(2,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 INSERT INTO schema_migrations(version,applied_at) VALUES(3,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 INSERT INTO schema_migrations(version,applied_at) VALUES(4,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
+INSERT INTO schema_migrations(version,applied_at) VALUES(5, CURRENT_TIMESTAMP::text);
 COMMIT;

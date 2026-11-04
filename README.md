@@ -75,14 +75,14 @@ The optional subheader countdown is controlled by **Admin → Voting & Like sche
 - The share/edit idea dialog preserves drafts on backdrop clicks and Escape. Successful submissions display **Your idea is shared.**; edits display **Changes saved.** The submit button becomes disabled (**Submitted** or **Saved**). Close the dialog with X or Cancel. Idea-detail and confirmation dialogs retain their separate dismissal behaviour.
 - User area: up to two current submissions per ordinary user, with create/edit/delete. Required title (120 characters), problem (4,000), solution (4,000) and team skills (1,000); optional JPG/PNG/WebP image up to 2 MiB. Images can be replaced or removed; the server validates and re-encodes uploads to WebP.
 - Unlimited likes across ideas, one like per person per idea. Clicking again removes the like.
-- Default two votes per person per voting round, configurable from 1–100. Each person can vote once per distinct idea. Clicking a voted idea again withdraws that vote while voting is open. Users can vote for their own ideas. Counts and permissions are enforced on the server, including concurrent requests.
-- Administrator controls: open/close voting immediately, configure its end time, schedule a start and end, change vote allowance, reset everyone’s voting round, and show an optional extra countdown below the main header. All co-admins have equal permissions. The final administrator cannot be removed.
+- Default two votes per person until an administrator resets votes, configurable from 1–100. Each person can vote once per distinct idea. Votes are final for users; duplicate requests cannot withdraw a vote. Users can vote for their own ideas. Counts and permissions are enforced on the server, including concurrent requests.
+- Administrator controls: open/close voting immediately, configure its end time, schedule a start and end, change vote allowance, reset all vote totals, and show an optional extra countdown below the main header. All co-admins have equal permissions. The final administrator cannot be removed.
 - Administrator CRUD for all ideas, with no administrative submission limit. The two-idea rule applies to ordinary users.
 - Independent top-three vote/like leaderboards and award banners. Awards require at least one vote/like; ties share the award. Top-three ties use the earliest creation time as a stable tiebreaker. Award counts update live; announcing an award does not freeze results. Close voting for final vote results and close likes for final like results.
 - Persistent audit records, an append-only `data/audit.jsonl` file, paginated admin activity viewer and JSONL export. Records cover sign-in/code requests/failures, logout, idea detail views and mutations, likes, votes, user permission changes, settings, resets and audit access. Automatic background polling, input keystrokes and local search changes are not logged. Codes and session tokens are excluded from audit logs. Console delivery mode prints codes only for local development.
 - Fifteen-second background refresh and refresh when a window regains focus. Voting eligibility is checked on every server request; the browser countdown uses a server-time offset. Schedule boundaries trigger an additional immediate refresh. No cron process is required, and schedules survive restarts.
 
-Changing the maximum votes below a person’s existing count retains their votes, sets available votes to zero, and prevents new votes until they withdraw enough or an admin resets the round. Resetting votes increments the round, retains previous rounds for audit and leaves likes intact. Deleting an idea deletes its likes/votes and releases those vote slots; the delete action remains logged.
+Changing the maximum votes below a person’s existing count retains their votes, sets available votes to zero, and prevents additional votes. Administrators can reset all votes globally, or clear one person’s votes from Participation. Global reset deletes stored votes, restores allowances and leaves likes intact; it never creates a new round. Closing, opening or scheduling voting retains all current vote totals. Deleting an idea deletes its votes/likes and releases those vote slots; the action remains logged.
 
 ## Voting panel and idea-submission deadlines
 
@@ -272,21 +272,21 @@ The suite covers the full API workflow, development authentication isolation, vo
 
 The optional Playwright browser suite requires a running loopback PostgreSQL server and uses a separate schema. Install Chromium with `npx playwright install chromium`, then run `npm run test:e2e`. See its configuration for executable overrides. No tests should target production event tables.
 
-Current checks: **67 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.
+Current checks: **75 tests passed against native PostgreSQL** using isolated test schemas, including first-time NEP colleague verification, ordinary-user permissions, email/domain validation, branded email packaging, API, migration/import and parallel-request checks. The production frontend build passed. Delivery to arbitrary production recipients requires SES production access and a real mailbox test; these tests do not send external emails.
 
 
 ### Editable footer link
 
 In **Admin → Footer link**, change the footer message, clickable text, and full HTTP/HTTPS URL, then choose **Save settings**. The default is “For more information, Click here” pointing to the NEP Confluence guide. The link opens in a new tab. Footer spacing is 100px on desktop, 60px on tablet (up to 1100px), and 40px on mobile (up to 600px).
 
-This release uses PostgreSQL schema version **4**. Existing installations must run `npm run db:migrate` as the database migration owner before starting the new API. Migration `002-footer-link.sql` only adds footer settings and preserves event data. The runtime role continues to use its existing settings-table permissions.
+This release uses PostgreSQL schema version **5**. Existing installations must run `npm run db:migrate` as the database migration owner before starting the new API. Migration `002-footer-link.sql` only adds footer settings and preserves event data. The runtime role continues to use its existing settings-table permissions.
 
 
 ### Admin activity and participation
 
 - **Admin → Activity log → Clear logs** opens a confirmation. Confirming deletes the shared activity history, retains a new `admin.audit_cleared` entry identifying the administrator, and leaves accounts, ideas, votes and likes unchanged. Export first if a copy is needed. The per-node diagnostic log copies synchronize to the clear boundary within 30 seconds, or at next startup for offline nodes. This does not purge independent backups or infrastructure logs.
 - Actions by `nep.monitor.synthetic@nepgroup.com` are skipped before audit insertion. Legacy entries for that actor are excluded from the activity view and export; the actor is also excluded from participation reports.
-- **Admin → Participation** lists users with at least one vote or like. Current-round vote totals are the default. Choose **All rounds** to count distinct ideas across stored voting rounds. Likes count currently liked ideas. Search by name or email, or refresh the table.
+- **Admin → Participation** lists users with at least one active vote or like. Search by name or email, refresh the table or export CSV. **Undo all votes** and **Undo all likes** each require confirmation and clear only the selected person’s selections. Clearing votes restores their allowance; clearing likes permits new likes while likes are open. Actions are audited.
 - Vote confirmation keeps its close X, a 30px “Your vote is in!” heading and the main check graphic. The decorative side icons and “Keep exploring” button are removed.
 
 The activity-log update used schema version 2; the current schema requirements are described below. Audit clearing is never performed automatically during deployment.
@@ -296,11 +296,11 @@ The activity-log update used schema version 2; the current schema requirements a
 
 - **Admin → Administrators → Delete account** opens a confirmation. Confirming permanently deletes the selected account, its ideas, its votes/likes, sessions and pending sign-in codes, and removes votes/likes placed on its ideas. Idea images are cleaned up. The current administrator and final remaining administrator are protected. Deletion is audited. An eligible NEP address can sign in again and create a new account; this action does not ban an email address.
 - **Admin → Manage ideas** defaults to descending vote count. Click **Votes** or **Likes** to toggle sorting. **Export CSV** downloads full idea details in the selected order.
-- **Admin → Participation → Export CSV**, beside Refresh table, exports the selected vote-history scope and participant search results.
+- **Admin → Participation → Export CSV**, beside Refresh table, exports the active vote/like totals matching the participant search.
 - **Admin → Idea submissions → Maximum ideas per person** changes the regular-user cap from 1 to 100; default **2**. Reducing it retains existing ideas and prevents additional submissions until the user is below the cap. Administrators retain their existing ability to manage additional ideas. Global submission closure still applies to everyone.
 - Sign-in accepts only ASCII letters and single separating periods before the exact `@nepgroup.com` domain. Numbers, other punctuation, consecutive periods, and leading/trailing periods are rejected. Letter case is normalized. Email-code verification remains required in production.
 
-Apply migration **003-submission-limit.sql** as the migration owner (`npm run db:migrate`) before starting this API. The database is schema version **4**. CSV exports require administrator access, include a UTF-8 BOM, quote multiline/Unicode text, and neutralize spreadsheet formulas in user-supplied cells. No production account removal is performed as a deployment test.
+Apply migration **003-submission-limit.sql** as the migration owner (`npm run db:migrate`) before starting this API. The database is schema version **5**. CSV exports require administrator access, include a UTF-8 BOM, quote multiline/Unicode text, and neutralize spreadsheet formulas in user-supplied cells. No production account removal is performed as a deployment test.
 
 
 ### Independent like scheduling and reset
@@ -317,3 +317,22 @@ The separate **A fresh start for likes. → Reset all likes** button opens a con
 Apply **004-like-schedule.sql** through `npm run db:migrate` as the migration owner before starting the new API. It adds `likes_mode` (default `open`), `likes_starts_at` and `likes_ends_at` to settings, preserves all existing likes, and brings the schema to **4**. Runtime settings-table grants already cover these columns. SQLite import and the AWS schema export include the same defaults. No production likes are reset during deployment.
 
 Verification covers schedule boundaries, independent vote/like controls, permissions, frozen likes/unlikes, confirmed reset isolation and migration of existing likes. The isolated UI preview also checked date persistence and both cancellation and confirmation of reset.
+
+
+### Feedback, full names and final votes — 5 November 2026
+
+- The footer’s **Share your feedback** link opens a dialog before the custom information link. It uses the “Help us improve this website” and “Help shape our next Innovation Week” captions. Both textareas are optional, with a 4,000-character limit each; at least one must contain non-whitespace text. Each populated field becomes one feedback entry. Empty fields create no rows.
+- The sender email is shown below the fields and taken from the signed-in account on the API, never from submitted form data. A centered thank-you dialog appears only after a successful save.
+- **Admin → Feedback** provides All / General feedback / Website feedback filters, a paginated Feedback/From/Category/Date table and **Export all feedback**. CSV includes date (UTC), feedback, category and email. Its export includes every category regardless of the table filter, quotes multiline text and neutralizes spreadsheet formulas.
+- Ideas now require **Your full name**, above the title, on creation or edit. Names accept international letters, spaces, apostrophes, periods and hyphens, up to 120 characters. “A closer look” shows the submitted name and account email. Existing ideas retain their content and show their email-derived author name until a full name is supplied on edit. Idea CSV includes the full name.
+- Users cannot undo votes. Vote counts and allowances persist when an administrator closes, opens or reschedules voting. **Reset all votes** requires confirmation and deletes all stored votes without advancing a round. Previously reset historical votes do not return. The old internal round marker is retained unchanged for database compatibility; the UI and participation export no longer offer voting rounds.
+
+Migration **005-feedback-and-names.sql** is additive: a nullable full-name column for legacy ideas and the new feedback table/indexes. It does not reset or modify event votes/likes. Run `npm run db:migrate` as the migration owner before the new API. Grant the runtime role only `SELECT, INSERT ON public.feedback`; it continues using existing idea/vote table grants. Feedback keeps an email snapshot for the requested From/export columns; deleting an account sets its feedback user reference to null and retains the submitted feedback and email. Back up feedback with PostgreSQL.
+
+### Input and browser security
+
+The API binds user values as PostgreSQL parameters. Dynamic sort fields and table names come exclusively from fixed allowlists. Requests validate object shape, known fields, category/sort enums, record IDs, text types, trimmed content, size and control characters. JSON bodies are bounded at 64 KiB; feedback also has per-user rate limits. Raw JSON parsing errors and database details are not returned to clients. Existing same-origin mutation checks, authenticated admin permissions, shared transaction locks and image decoding/re-encoding remain enforced.
+
+Text (including SQL-looking or HTML-looking feedback) is treated as literal data, rendered with React escaping and never inserted as HTML. Legitimate punctuation and SQL terminology are not banned as an injection defense. CSV exports neutralize formula-leading strings. Amplify’s `customHttp.yml` adds a same-origin Content Security Policy, anti-framing headers, nosniff, HSTS, referrer policy and disabled unused browser permissions. It does not override private API cache controls.
+
+References: [OWASP SQL injection prevention](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html), [OWASP XSS prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html), and [Amplify custom headers](https://docs.aws.amazon.com/amplify/latest/userguide/custom-headers.html). Verification includes real PostgreSQL injection payloads, empty/forged feedback, admin-only exports, CSV safety, immutable/concurrent votes and isolated per-user resets. Production reset endpoints are never called as deployment tests.

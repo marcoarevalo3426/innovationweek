@@ -79,6 +79,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.users, public.ideas, public.likes, public.votes, public.settings,
   public.challenges, public.sessions, public.audit, public.data_imports
   TO innovation_app;
+GRANT SELECT, INSERT ON public.feedback TO innovation_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO innovation_app;
 GRANT rds_iam TO innovation_app;
 SELECT pg_has_role('innovation_app', 'rds_iam', 'member');

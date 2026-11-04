@@ -6,7 +6,7 @@
   "max": 4,
   "desiredAtVerification": 1,
   "launchTemplateId": "lt-0caa430400247386c",
-  "launchTemplateVersion": "6",
+  "launchTemplateVersion": "7",
   "instanceType": "t3.medium",
   "cpuTargetPercent": 40,
   "requestsPerTargetPerMinute": 600,
@@ -17,13 +17,14 @@
   "deregistrationDelaySeconds": 60,
   "bucket": "nep-innovation-week-375033595717-ap-southeast-2",
   "configParameter": "/innovation-week/production/env",
-  "releaseId": "20261104-like-schedule-v6",
-  "releaseSHA256": "38ae23ed0aafefb239a1cc9fbb2b16ffe0924759ef1c70df05c88c6d29f013fb",
+  "releaseId": "20261105-feedback-v7",
+  "releaseSHA256": "c0c9427e1865d2154bf2ee18b29febf2549935115b3301ee44bafb93c785a742",
   "scaleOutToTwoVerified": true,
   "scaleInToOneVerified": true,
   "stressTestedCapacity": false,
-  "schemaVersion": 4,
-  "testsPassed": 67,
+  "schemaVersion": 5,
+  "testsPassed": 75,
   "productionAuditClearedByDeployment": false,
-  "productionLikesResetByDeployment": false
+  "productionLikesResetByDeployment": false,
+  "productionVotesResetByDeployment": false
 }

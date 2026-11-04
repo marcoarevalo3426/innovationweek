@@ -15,7 +15,7 @@ let base;const ready=new Promise((resolve,reject)=>{let output='';const timeout=
 const clients={};
 async function request(path,{method='GET',body,client,header=true}={}){const res=await fetch(base+'/api'+path,{method,headers:{...(header?{'X-Requested-With':'InnovationWeek'}:{}),...(body instanceof FormData?{}:{'Content-Type':'application/json'}),...(client?{Cookie:clients[client]||''}:{})},body:body instanceof FormData?body:body?JSON.stringify(body):undefined});const cookie=res.headers.get('set-cookie');if(client&&cookie)clients[client]=cookie.split(';')[0];const raw=await res.text();let data;try{data=JSON.parse(raw);}catch{data=raw;}return {status:res.status,data,headers:res.headers};}
 async function login(email,client){const sent=await request('/auth/request',{method:'POST',body:{email}});assert.equal(sent.status,200);assert.match(sent.data.developmentCode,/^\d{6}$/);const verified=await request('/auth/verify',{method:'POST',body:{email,code:sent.data.developmentCode},client});assert.equal(verified.status,200);return {user:verified.data.user,code:sent.data.developmentCode};}
-const ideaBody=title=>({title,problem:'Production teams repeat manual work.',solution:'Build a connected tool that automates it.',skills:'Engineering, operations and design'});
+const ideaBody=title=>({full_name:'Alex Example',title,problem:'Production teams repeat manual work.',solution:'Build a connected tool that automates it.',skills:'Engineering, operations and design'});
 function form(body,file){const f=new FormData();for(const[k,v]of Object.entries(body))f.append(k,v);if(file)f.append('image',new Blob([file],{type:'image/png'}),'image.png');return f;}
 
 test('Full local API workflow and security rules',async t=>{
@@ -75,8 +75,30 @@ test('Full local API workflow and security rules',async t=>{
    assert.equal((await request('/ideas',{client:'alice'})).data.settings.show_welcome,0);
    assert.equal((await patch({show_welcome:1})).status,200);
  });
- await t.test('voting closed by default; maximum two distinct votes with withdrawal',async()=>{assert.equal((await request(`/ideas/${first.id}/vote`,{client:'alice',method:'POST'})).status,409);assert.equal((await request('/admin/settings',{client:'admin',method:'PATCH',body:{mode:'open',ends_at:new Date(Date.now()+86400000).toISOString()}})).status,200);await Promise.all([first,second].map(i=>request(`/ideas/${i.id}/vote`,{client:'alice',method:'POST'})));assert.equal((await request(`/ideas/${third.id}/vote`,{client:'alice',method:'POST'})).status,409);assert.equal((await request('/ideas',{client:'alice'})).data.votesUsed,2);await request(`/ideas/${first.id}/vote`,{client:'alice',method:'POST'});assert.equal((await request(`/ideas/${third.id}/vote`,{client:'alice',method:'POST'})).status,200);});
- await t.test('reset restores allowance, clears current counts, and retains likes',async()=>{assert.equal((await request('/admin/reset-votes',{client:'admin',method:'POST'})).status,200);const data=(await request('/ideas',{client:'alice'})).data;assert.equal(data.votesUsed,0);assert.equal(data.settings.round,2);assert.equal(data.ideas.reduce((n,i)=>n+i.votes,0),0);assert.equal(data.ideas.reduce((n,i)=>n+i.likes,0),2);await request('/admin/settings',{client:'admin',method:'PATCH',body:{max_votes:1}});assert.equal((await request(`/ideas/${first.id}/vote`,{client:'alice',method:'POST'})).status,200);assert.equal((await request(`/ideas/${second.id}/vote`,{client:'alice',method:'POST'})).status,409);});
+ await t.test('voting is final, bounded, and duplicate requests cannot undo votes',async()=>{
+  assert.equal((await request(`/ideas/${first.id}/vote`,{client:'alice',method:'POST'})).status,409);
+  await request('/admin/settings',{client:'admin',method:'PATCH',body:{mode:'open',ends_at:new Date(Date.now()+86400000).toISOString()}});
+  await Promise.all([first,second].map(i=>request(`/ideas/${i.id}/vote`,{client:'alice',method:'POST'})));
+  assert.equal((await request(`/ideas/${third.id}/vote`,{client:'alice',method:'POST'})).status,409);
+  assert.equal((await request(`/ideas/${first.id}/vote`,{client:'alice',method:'POST'})).status,409);
+  assert.equal((await request('/ideas',{client:'alice'})).data.votesUsed,2);
+  for(const body of [{mode:'closed'},{mode:'scheduled',starts_at:new Date(Date.now()+100000).toISOString(),ends_at:new Date(Date.now()+200000).toISOString()},{mode:'open',ends_at:new Date(Date.now()+86400000).toISOString()}]){
+   assert.equal((await request('/admin/settings',{client:'admin',method:'PATCH',body})).status,200);
+   assert.equal((await request('/ideas',{client:'alice'})).data.votesUsed,2);
+  }
+ });
+ await t.test('confirmed reset clears every vote without creating a new round and retains likes',async()=>{
+  const round=(await database.pool.query('SELECT round FROM settings')).rows[0].round;
+  assert.equal((await request('/admin/reset-votes',{client:'admin',method:'POST'})).status,400);
+  assert.equal((await request('/admin/reset-votes',{client:'alice',method:'POST',body:{confirmed:true}})).status,403);
+  assert.equal((await request('/admin/reset-votes',{client:'admin',method:'POST',body:{confirmed:true}})).status,200);
+  const data=(await request('/ideas',{client:'alice'})).data;
+  assert.equal(data.votesUsed,0);assert.equal(data.settings.round,round);assert.equal((await database.pool.query('SELECT COUNT(*) AS n FROM votes')).rows[0].n,0);
+  assert.equal(data.ideas.reduce((n,i)=>n+i.votes,0),0);assert.equal(data.ideas.reduce((n,i)=>n+i.likes,0),2);
+  await request('/admin/settings',{client:'admin',method:'PATCH',body:{max_votes:1}});
+  assert.equal((await request(`/ideas/${first.id}/vote`,{client:'alice',method:'POST'})).status,200);
+  assert.equal((await request(`/ideas/${second.id}/vote`,{client:'alice',method:'POST'})).status,409);
+ });
  await t.test('evaluates schedule boundaries and displays settings',async()=>{const now=Date.now();const patch=body=>request('/admin/settings',{client:'admin',method:'PATCH',body});assert.equal((await patch({mode:'scheduled',starts_at:new Date(now+100000).toISOString(),ends_at:new Date(now+200000).toISOString(),top_votes:1,top_likes:1,innovation_award:1,peoples_award:1})).status,200);assert.equal((await request('/ideas',{client:'alice'})).data.settings.status,'upcoming');assert.equal((await request(`/ideas/${first.id}/vote`,{client:'bob',method:'POST'})).status,409);await patch({starts_at:new Date(now-1000).toISOString()});assert.equal((await request('/ideas',{client:'alice'})).data.settings.status,'open');assert.equal((await request(`/ideas/${first.id}/vote`,{client:'bob',method:'POST'})).status,200);await patch({starts_at:new Date(now-200000).toISOString(),ends_at:new Date(now-1000).toISOString()});assert.equal((await request('/ideas',{client:'alice'})).data.settings.status,'closed');assert.equal((await request(`/ideas/${second.id}/vote`,{client:'bob',method:'POST'})).status,409);assert.equal((await patch({ends_at:new Date(now-300000).toISOString()})).status,400);});
  await t.test('assigns co-admin permissions, supports moderation, and retains a final admin',async()=>{assert.equal((await request('/admin/users/'+bob.user.id,{client:'admin',method:'PATCH',body:{is_admin:1}})).status,200);assert.equal((await request('/admin/users',{client:'bob'})).status,200);assert.equal((await request('/ideas/'+first.id,{client:'bob',method:'PUT',body:form(ideaBody('Admin moderated'))})).status,200);await request('/admin/users/'+bob.user.id,{client:'admin',method:'PATCH',body:{is_admin:0}});assert.equal((await request('/admin/users',{client:'bob'})).status,403);assert.equal((await request('/admin/users/'+admin.user.id,{client:'admin',method:'PATCH',body:{is_admin:0}})).status,409);});
  await t.test('deletes ideas, permits replacement, and records actions in export and log file',async()=>{assert.equal((await request('/ideas/'+second.id,{client:'alice',method:'DELETE'})).status,200);assert.equal((await request('/ideas',{client:'alice',method:'POST',body:form(ideaBody('A replacement idea'))})).status,201);const logs=(await request('/admin/audit',{client:'admin'})).data;assert.ok(logs.total>20);assert.ok(logs.rows.some(l=>l.action==='idea.deleted'));const exported=await request('/admin/audit?download=1',{client:'admin'});assert.match(exported.headers.get('content-disposition'),/attachment/);assert.ok(exported.data.includes('auth.signed_in'));assert.ok(readFileSync(join(root,'audit.jsonl'),'utf8').includes('admin.votes_reset'));});
@@ -177,7 +199,7 @@ test('Full local API workflow and security rules',async t=>{
    const exported=await request('/admin/audit?download=1',{client:'admin'});
    assert.ok(!exported.data.toLowerCase().includes('nep.monitor.synthetic@nepgroup.com'));
  });
- await t.test('participation is admin-only and counts distinct ideas independently by current or all rounds',async()=>{
+ await t.test('participation counts active votes only and does not revive legacy reset votes',async()=>{
    const participant=await login('report.person@nepgroup.com','report');
    const ids=(await database.pool.query('SELECT id FROM ideas ORDER BY id LIMIT 3')).rows.map(r=>r.id);assert.equal(ids.length,3);
    const round=(await database.pool.query('SELECT round FROM settings')).rows[0].round;
@@ -189,13 +211,12 @@ test('Full local API workflow and security rules',async t=>{
    const monitor=(await database.pool.query("SELECT id FROM users WHERE email='nep.monitor.synthetic@nepgroup.com'")).rows[0];
    await database.pool.query('INSERT INTO votes(user_id,idea_id,round) VALUES($1,$2,$3)',[monitor.id,ids[0],round]);
    assert.equal((await request('/admin/participation',{client:'alice'})).status,403);
-   assert.equal((await request('/admin/participation?scope=invalid',{client:'admin'})).status,400);
    const current=(await request('/admin/participation',{client:'admin'})).data;
-   assert.equal(current.round,round);assert.deepEqual(current.rows.find(r=>r.id===participant.user.id),{id:participant.user.id,email:'report.person@nepgroup.com',voted:2,liked:2});
+   assert.deepEqual(current.rows.find(r=>r.id===participant.user.id),{id:participant.user.id,email:'report.person@nepgroup.com',voted:2,liked:2});
    assert.ok(!current.rows.some(r=>r.email==='nep.monitor.synthetic@nepgroup.com'||r.email==='new.colleague.ideas@nepgroup.com'));
    const history=(await request('/admin/participation?scope=all',{client:'admin'})).data;
-   assert.equal(history.rows.find(r=>r.id===participant.user.id).voted,3);
-   const csv=await request('/admin/participation?scope=all&download=1&search=report.person',{client:'admin'});assert.equal(csv.status,200);assert.match(csv.headers.get('content-type'),/text\/csv/);assert.ok(csv.data.includes('"Report Person","report.person@nepgroup.com","3","2"'));assert.ok(!csv.data.includes('nep.monitor.synthetic'));assert.ok(!csv.data.includes('bob@nepgroup.com'));
+   assert.equal(history.rows.find(r=>r.id===participant.user.id).voted,2);
+   const csv=await request('/admin/participation?scope=all&download=1&search=report.person',{client:'admin'});assert.equal(csv.status,200);assert.match(csv.headers.get('content-type'),/text\/csv/);assert.ok(csv.data.includes('"Report Person","report.person@nepgroup.com","2","2"'));assert.ok(!csv.data.includes('nep.monitor.synthetic'));assert.ok(!csv.data.includes('bob@nepgroup.com'));
    assert.equal((await request('/admin/participation?download=1',{client:'alice'})).status,403);
 
  });

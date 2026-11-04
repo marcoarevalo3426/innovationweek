@@ -54,11 +54,14 @@ test('local access skips email and sessions, and production still requires authe
   assert.equal((await local.request('/ideas')).status,200);
   assert.equal((await local.request('/admin/settings',{method:'PATCH',body:{mode:'open',ends_at:new Date(Date.now()+86400000).toISOString()}})).status,200);
   const body=new FormData();
-  for(const [key,value] of Object.entries({title:'Local idea',problem:'A problem',solution:'A solution',skills:'Engineering'}))body.set(key,value);
+  for(const [key,value] of Object.entries({full_name:'Alex Example',title:'Local idea',problem:'A problem',solution:'A solution',skills:'Engineering'}))body.set(key,value);
   // The app API uses multipart submissions; no cookie or code is needed.
   const created=await fetch(local.base+'/api/ideas',{method:'POST',headers:{'X-Requested-With':'InnovationWeek'},body});
   assert.equal(created.status,201);
-  assert.equal((await created.json()).user_id,me.data.user.id);
+  const localIdea=await created.json();assert.equal(localIdea.user_id,me.data.user.id);
+  assert.equal((await local.request('/ideas/'+localIdea.id+'/vote',{method:'POST'})).status,200);
+  assert.equal((await local.request('/admin/users/'+me.data.user.id+'/reset-votes',{method:'POST',body:{confirmed:true}})).status,200);
+  assert.equal((await local.request('/ideas')).data.votesUsed,0);
   for(const path of ['/auth/request','/auth/verify','/auth/logout']){
     const result=await local.request(path,{method:'POST',body:{email:'person@nepgroup.com',code:'000000'}});
     assert.equal(result.status,409);

@@ -1,0 +1,69 @@
+README.md
+  s_1637736c36f889::t_e913bb54cc2208 78-79,85,275,282,289,299,303,320-338
+customHttp.yml
+  s_1637736c36f889::t_208dd9634164b2 1-15
+deploy/amplify-postgresql/PRODUCTION.md
+  s_1637736c36f889::t_bbc9f09480c1aa 82
+deploy/amplify-postgresql/README.md
+  s_1637736c36f889::t_48925d8cd54727 132
+deploy/amplify-postgresql/SETUP.md
+  s_1637736c36f889::t_58bff30ec29e88 125
+deploy/amplify-postgresql/create-schema.sql
+  s_1637736c36f889::t_b2b104f353ba07 1-2,106-120,126
+deploy/autoscaling/README.md
+  s_1637736c36f889::t_789e0613d37de5 140-150
+deploy/autoscaling/deployment.json
+  s_1637736c36f889::t_b29a768c81f591 9,20-21,25-26,28-29
+deploy/postgresql-ses/README.md
+  s_1637736c36f889::t_7a4c7249d03a6f 95
+scripts/db-check.js
+  s_1637736c36f889::t_1e31f33f6a4842 8
+server/feedback.js
+  s_1637736c36f889::t_04d8b75818e8bf 1-53
+server/index.js
+  s_1637736c36f889::t_22126c70da099d 1-2,83,85-89,256,293,298-302,349,370,420-423,430-433,440,442-443,447,450,452,455-456,458-459,461,463,465-479,505,536,567-571,573,643
+server/migrate.js
+  s_1637736c36f889::t_f68e33afffe39d 8
+server/migrations/005-feedback-and-names.sql
+  s_1637736c36f889::t_74d7ac61c39a98 1-14
+server/sqlite-import.js
+  s_1637736c36f889::t_8ff92273247caf 10,65
+shared/input-validation.js
+  s_1637736c36f889::t_348b2193e672b1 1-26
+src/App.jsx
+  s_1637736c36f889::t_9a9dd5cdde591c 1-2,43,45,49,51,57,60,70,72-73,79,128,139
+src/FeedbackDialog.jsx
+  s_1637736c36f889::t_55ca06eb8e2cbd 1-26
+src/FeedbackPanel.jsx
+  s_1637736c36f889::t_4343ff740c02a1 1-13
+src/styles.css
+  s_1637736c36f889::t_a71f0f62940733 93-127
+tests/api.test.js
+  s_1637736c36f889::t_dae9c8d2ceffe0 18,78-101,202,215,218-219
+tests/browser/workflow.spec.js
+  s_1637736c36f889::t_b571009862ea70 5
+tests/concurrency.test.js
+  s_1637736c36f889::t_367d0b1f780554 33
+tests/feedback-security.test.js
+  s_1637736c36f889::t_8a3c3c85ea9125 1-108
+tests/local-auth.test.js
+  s_1637736c36f889::t_8fd515778fecd5 57,61-64
+tests/scaling.test.js
+  s_1637736c36f889::t_9dc7c5e8feb89c 50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e90e08fcdcf4d4cb2e504a96bf51e6bf635484ce",
+  "prompts": {},
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

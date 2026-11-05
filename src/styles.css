@@ -125,3 +125,16 @@
   .feedback-form-actions .button { flex: 1; }
   .feedback-link { display: inline-block; margin-bottom: 8px; }
 }
+
+/* Keep the added feedback navigation item usable on narrow tablets. */
+@media (min-width: 601px) and (max-width: 760px) {
+  .header-inner { position: relative; justify-content: space-between; gap: 0; padding: 0 20px; }
+  .user-menu { border: 0; padding-left: 0; }
+  .mobile-toggle { display: inline-flex; }
+  .header-inner nav { position: absolute; top: 80px; left: 0; right: 0; display: none; background: #fff; height: auto; z-index: 9; padding: 8px 18px 13px; box-shadow: 0 15px 25px #2d17491a; border-top: 1px solid #e2dae9; align-items: stretch; }
+  .header-inner nav.visible { display: flex; flex-direction: column; gap: 2px; }
+  .header-inner nav > button { padding: 13px 12px; border-radius: 6px; gap: 9px; }
+  .header-inner nav > button > svg { display: block; }
+  .header-inner nav > button.active { background: #f4edfc; }
+  .header-inner nav > button.active:after { display: none; }
+}

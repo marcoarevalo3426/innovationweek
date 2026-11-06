@@ -19,7 +19,7 @@ Preparing these instructions has not created resources in your AWS account. The 
 | Region | Asia Pacific (Sydney), `ap-southeast-2` |
 | Existing Amplify app / branch | `d3ha2gxpxiqxnu` / `main` |
 | Existing database cluster | `innovationweek-database` |
-| Database writer hostname | `innovationweek-database.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com` |
+| Database writer hostname | `innovation-week-postgres.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com` |
 | Database authentication | IAM; generate tokens automatically in Node |
 | Database certificate | `AmazonRootCA1.pem` |
 | New EC2 instance name | `innovation-week-api` |
@@ -257,7 +257,7 @@ Check Aurora DNS and TCP access:
 ```sh
 
 
-nc -vz -w 5 innovationweek-database.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com 5432
+nc -vz -w 5 innovation-week-postgres.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com 5432
 ```
 
 Install the certificate onto the **server**:
@@ -269,9 +269,9 @@ curl --fail --show-error --location \
 sudo install -m 644 /tmp/innovation-AmazonRootCA1.pem /etc/ssl/certs/AmazonRootCA1.pem
 
 openssl s_client -starttls postgres \
-  -connect innovationweek-database.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com:5432 \
-  -servername innovationweek-database.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com \
-  -verify_hostname innovationweek-database.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com \
+  -connect innovation-week-postgres.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com:5432 \
+  -servername innovation-week-postgres.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com \
+  -verify_hostname innovation-week-postgres.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com \
   -CAfile /etc/ssl/certs/AmazonRootCA1.pem \
   -verify_return_error -brief </dev/null
 ```

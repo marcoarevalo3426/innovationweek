@@ -6,11 +6,11 @@ Deployment status: **enabled in AWS on 3 November 2026**. The group was verified
 | --- | --- |
 | Region / account | `ap-southeast-2` / `375033595717` |
 | Auto Scaling group | `innovation-week-api-asg`, min/desired 1, max 4 |
-| Launch template | `innovation-week-api-fleet`, `lt-0caa430400247386c`, pinned version `5` |
+| Launch template | `innovation-week-api-fleet`, `lt-0caa430400247386c`, pinned version `8` |
 | Shared bucket | `nep-innovation-week-375033595717-ap-southeast-2`, private, SSE-S3 encryption, versioning, TLS required |
 | Configuration | SecureString `/innovation-week/production/env`, encrypted with the default SSM managed key |
 | Runtime identity | Existing `InnovationWeekApiRole`; shared database permission retained; bucket/prefix and parameter access scoped to this app |
-| Release | `releases/20261103-admin-management-v5/app.tgz`; SHA256 `27c831640fff87f3fe82c609fe59e4cefd92b344a390ea77f1ccca9b42e318ce` |
+| Release | `releases/20261106-card-display-v8/app.tgz`; SHA256 `7008b11443927ef1bbc2320f6b8059879dfb679f3ed6e5eef90f3d313ba5e39d` |
 | Original instance | `i-0519323d1f9f9d3ac`, attached and protected from routine scale-in during this initial deployment |
 | Replacement test instance | `i-02b89bbfb61c95abc`, successfully booted, validated, then terminated by the scale-in test |
 
@@ -148,3 +148,10 @@ The staged API and fresh fleet node passed matching-source, schema, full-name co
 This release adds user feedback with optional categories, trusted sender email and a centered confirmation; admin filtering/CSV export; required full names on idea create/edit; irreversible user votes; and confirmed per-user vote/like clearing. The backend preserves current counts across schedule changes. Security checks cover parameterized SQL, bounded/typed text, prototype-key rejection, immutable/concurrent votes, CSV formula safety, CSRF and admin permissions. Amplify reads the frontend security headers from root `customHttp.yml`.
 
 Validation: **75 native PostgreSQL tests passed**, production build passed, and browser checks used an isolated local database for feedback persistence, category filters, reset cancellation/correction, names/emails, locked vote buttons and mobile dialog layout. No production reset endpoint, recipient email or synthetic feedback submission was used for verification.
+
+
+### 6 November 2026 — card authors and visible totals
+
+Launch-template version **8** uses release `20261106-card-display-v8` and PostgreSQL schema **6**. Migration `006-card-count-visibility.sql` adds `show_vote_counts` and `show_like_counts`, each defaulting to 1. It preserves all existing ideas, reactions and settings. The existing runtime settings-table grants cover both new columns. In Admin → Voting & Like schedule, save the Card totals switches with Save voting settings. Hiding both removes the gallery sorting control and uses newest first; the Like/Vote actions remain available according to their schedules.
+
+The current database endpoint is `innovation-week-postgres.cluster-cyqg0uctocgp.ap-southeast-2.rds.amazonaws.com`. During this deployment the old hostname was found in the protected API configuration; SSM SecureString version **3** changes only `PGHOST` to the verified current endpoint. SMTP credentials, sessions and all other configuration were preserved. The API was staged, checked as its service user, restarted while drained from traffic, and checked for the correct endpoint in its actual running process. No production votes, likes, accounts or feedback were reset or created as a deployment test.

@@ -1,0 +1,27 @@
+deploy/amplify-postgresql/EC2-SERVER.md
+  s_1637736c36f889::t_62e5e52063a221 22,260,272-274
+deploy/amplify-postgresql/PRODUCTION.md
+  s_1637736c36f889::t_5d7081f8084dbb 196
+deploy/amplify-postgresql/backend-aurora-iam.env.example
+  s_1637736c36f889::t_810a29496c8763 15
+deploy/autoscaling/README.md
+  s_1637736c36f889::t_4bb72103bd08a9 9,13,151-157
+deploy/autoscaling/deployment.json
+  s_1637736c36f889::t_31a72a90d5bd74 9,20-21,25-26,29-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c6c1f3a37ce55ded83131d68c59ff42ec3cbfcae",
+  "prompts": {},
+  "sessions": {
+    "s_1637736c36f889": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187e1-2d10-75e0-a430-b27a2536e159",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "marcoarevalo <marco.arevalo3426@gmail.com>"
+    }
+  }
+}

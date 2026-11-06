@@ -39,6 +39,19 @@ test('PostgreSQL schema migration is repeatable and preserves settings',async t=
   assert.deepEqual((await database.pool.query('SELECT max_votes,round,show_welcome,max_ideas FROM settings')).rows[0],{max_votes:7,round:4,show_welcome:0,max_ideas:5});
 });
 
+test('schema-five upgrade defaults card totals to visible without changing reactions or settings',async t=>{
+  const database=await testDatabase();t.after(()=>database.cleanup());
+  for(const file of ['001-postgresql.sql','002-footer-link.sql','003-submission-limit.sql','004-like-schedule.sql','005-feedback-and-names.sql'])await database.pool.query(readFileSync(new URL('../server/migrations/'+file,import.meta.url),'utf8'));
+  await database.pool.query("CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT NOT NULL);INSERT INTO schema_migrations VALUES(5,'before');INSERT INTO users VALUES('existing','existing@nepgroup.com',0,'now');INSERT INTO ideas(id,user_id,title,problem,solution,skills,created_at,updated_at) VALUES('idea','existing','Title','Problem','Solution','Skills','now','now');INSERT INTO likes VALUES('existing','idea');INSERT INTO votes VALUES('existing','idea',1);UPDATE settings SET max_votes=7,max_ideas=5");
+  await migrate(database.pool);await checkSchema(database.pool);
+  assert.deepEqual((await database.pool.query('SELECT show_vote_counts,show_like_counts,max_votes,max_ideas FROM settings')).rows[0],{show_vote_counts:1,show_like_counts:1,max_votes:7,max_ideas:5});
+  for(const table of ['likes','votes'])assert.equal((await database.pool.query(`SELECT COUNT(*) AS n FROM ${table}`)).rows[0].n,1);
+  await database.pool.query('UPDATE settings SET show_vote_counts=0,show_like_counts=0');
+  await migrate(database.pool);
+  assert.deepEqual((await database.pool.query('SELECT show_vote_counts,show_like_counts FROM settings')).rows[0],{show_vote_counts:0,show_like_counts:0});
+  await assert.rejects(database.pool.query('UPDATE settings SET show_vote_counts=2'),/check constraint/);
+});
+
 test('SQLite import validates full rows, preserves history/files, drops sessions and refuses repetition',async t=>{
   const database=await testDatabase();t.after(()=>database.cleanup());
   const sourceDir=mkdtempSync(join(tmpdir(),'nep-source-')), targetDir=mkdtempSync(join(tmpdir(),'nep-target-'));

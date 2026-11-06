@@ -1,5 +1,5 @@
--- NEP Innovation Week: exact PostgreSQL schema, release schema version 5.
--- Generated from server/migrations/001-postgresql.sql , 002-footer-link.sql , 003-submission-limit.sql 004-like-schedule.sql and 005-feedback-and-names.sql; includes the migration
+-- NEP Innovation Week: exact PostgreSQL schema, release schema version 6.
+-- Generated from server/migrations/001-postgresql.sql , 002-footer-link.sql , 003-submission-limit.sql 004-like-schedule.sql 005-feedback-and-names.sql and 006-card-count-visibility.sql; includes the migration
 -- metadata required by server/migrate.js. Contains no existing user data.
 -- Run ONCE in an EMPTY innovation_week database using its migration owner:
 -- psql "host=... dbname=innovation_week ... sslmode=verify-full ..." -W -v ON_ERROR_STOP=1 -f create-schema.sql
@@ -118,10 +118,15 @@ CREATE TABLE feedback (
 CREATE INDEX idx_feedback_created ON feedback(created_at DESC,id);
 CREATE INDEX idx_feedback_category_created ON feedback(category,created_at DESC,id);
 
+ALTER TABLE settings
+  ADD COLUMN show_vote_counts INTEGER NOT NULL DEFAULT 1 CHECK (show_vote_counts IN (0,1)),
+  ADD COLUMN show_like_counts INTEGER NOT NULL DEFAULT 1 CHECK (show_like_counts IN (0,1));
+
 INSERT INTO schema_migrations(version,applied_at)
 VALUES (1, to_char(clock_timestamp() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 INSERT INTO schema_migrations(version,applied_at) VALUES(2,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 INSERT INTO schema_migrations(version,applied_at) VALUES(3,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 INSERT INTO schema_migrations(version,applied_at) VALUES(4,to_char(clock_timestamp() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
 INSERT INTO schema_migrations(version,applied_at) VALUES(5, CURRENT_TIMESTAMP::text);
+INSERT INTO schema_migrations(version,applied_at) VALUES(6, CURRENT_TIMESTAMP::text);
 COMMIT;

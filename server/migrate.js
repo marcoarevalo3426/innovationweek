@@ -6,6 +6,7 @@ const migrations = [
   { version: 3, file: new URL('./migrations/003-submission-limit.sql', import.meta.url) },
   { version: 4, file: new URL('./migrations/004-like-schedule.sql', import.meta.url) },
   { version: 5, file: new URL('./migrations/005-feedback-and-names.sql', import.meta.url) },
+  { version: 6, file: new URL('./migrations/006-card-count-visibility.sql', import.meta.url) },
 ];
 export const SCHEMA_VERSION = migrations.at(-1).version;
 export async function migrate(pool) {

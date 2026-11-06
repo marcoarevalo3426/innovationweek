@@ -65,6 +65,19 @@ test('Full local API workflow and security rules',async t=>{
  await t.test('rejects invalid fields and unsafe or oversize images',async()=>{assert.equal((await request('/ideas',{client:'bob',method:'POST',body:form({...ideaBody(''),title:''})})).status,400);assert.equal((await request('/ideas',{client:'bob',method:'POST',body:form(ideaBody('Bad image'),Buffer.from('<svg/>'))})).status,400);assert.equal((await request('/ideas',{client:'bob',method:'POST',body:form(ideaBody('Too big'),Buffer.alloc(2*1024*1024+1))})).status,400);});
  await t.test('enforces ownership and enables image removal',async()=>{assert.equal((await request('/ideas/'+first.id,{client:'bob',method:'PUT',body:form(ideaBody('Take over'))})).status,403);assert.equal((await request('/ideas/'+first.id,{client:'bob',method:'DELETE'})).status,403);assert.equal((await request('/ideas/'+first.id,{client:'alice',method:'PUT',body:form({...ideaBody('Updated connected production'),removeImage:'true'})})).status,200);assert.equal((await request('/ideas/'+first.id,{client:'alice'})).data.image,null);});
  await t.test('likes toggle without duplicates and have no overall limit',async()=>{for(const i of [first,second,third])assert.equal((await request(`/ideas/${i.id}/like`,{client:'alice',method:'POST'})).status,200);let data=(await request('/ideas',{client:'alice'})).data;assert.equal(data.ideas.reduce((n,i)=>n+i.likes,0),3);await request(`/ideas/${first.id}/like`,{client:'alice',method:'POST'});data=(await request('/ideas',{client:'alice'})).data;assert.equal(data.ideas.find(i=>i.id===first.id).likes,0);});
+ await t.test('card count visibility is admin-only, validates flags and persists independently',async()=>{
+   const patch=(body,client='admin')=>request('/admin/settings',{client,method:'PATCH',body});
+   const initial=(await request('/ideas',{client:'alice'})).data.settings;
+   assert.equal(initial.show_vote_counts,1);assert.equal(initial.show_like_counts,1);
+   assert.equal((await patch({show_vote_counts:0},'alice')).status,403);
+   for(const key of ['show_vote_counts','show_like_counts'])for(const value of [-1,2,'0',true,null])assert.equal((await patch({[key]:value})).status,400);
+   for(const [votes,likes] of [[0,1],[1,0],[0,0],[1,1]]){
+     assert.equal((await patch({show_vote_counts:votes,show_like_counts:likes})).status,200);
+     const saved=(await request('/ideas',{client:'alice'})).data.settings;
+     assert.equal(saved.show_vote_counts,votes);assert.equal(saved.show_like_counts,likes);
+     assert.equal(saved.mode,initial.mode);assert.equal(saved.likes_mode,initial.likes_mode);
+   }
+ });
  await t.test('restricts administrator endpoints and validates settings',async()=>{assert.equal((await request('/admin/users',{client:'alice'})).status,403);assert.equal((await request('/admin/settings',{client:'admin',method:'PATCH',body:{max_votes:0}})).status,400);assert.equal((await request('/admin/settings',{client:'admin',method:'PATCH',body:{is_admin:1}})).status,400);});
  await t.test('welcome setting defaults on and saves independently of voting',async()=>{
    const initial=(await request('/ideas',{client:'alice'})).data.settings;

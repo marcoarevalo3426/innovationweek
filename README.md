@@ -280,7 +280,7 @@ Current checks: **75 tests passed against native PostgreSQL** using isolated tes
 
 In **Admin → Footer link**, change the footer message, clickable text, and full HTTP/HTTPS URL, then choose **Save settings**. The default is “For more information, Click here” pointing to the NEP Confluence guide. The link opens in a new tab. Footer spacing is 100px on desktop, 60px on tablet (up to 1100px), and 40px on mobile (up to 600px).
 
-This release uses PostgreSQL schema version **5**. Existing installations must run `npm run db:migrate` as the database migration owner before starting the new API. Migration `002-footer-link.sql` only adds footer settings and preserves event data. The runtime role continues to use its existing settings-table permissions.
+This release uses PostgreSQL schema version **6**. Existing installations must run `npm run db:migrate` as the database migration owner before starting the new API. Migration `002-footer-link.sql` only adds footer settings and preserves event data. The runtime role continues to use its existing settings-table permissions.
 
 
 ### Admin activity and participation
@@ -301,7 +301,7 @@ The activity-log update used schema version 2; the current schema requirements a
 - **Admin → Idea submissions → Maximum ideas per person** changes the regular-user cap from 1 to 100; default **2**. Reducing it retains existing ideas and prevents additional submissions until the user is below the cap. Administrators retain their existing ability to manage additional ideas. Global submission closure still applies to everyone.
 - Sign-in accepts only ASCII letters and single separating periods before the exact `@nepgroup.com` domain. Numbers, other punctuation, consecutive periods, and leading/trailing periods are rejected. Letter case is normalized. Email-code verification remains required in production.
 
-Apply migration **003-submission-limit.sql** as the migration owner (`npm run db:migrate`) before starting this API. The database is schema version **5**. CSV exports require administrator access, include a UTF-8 BOM, quote multiline/Unicode text, and neutralize spreadsheet formulas in user-supplied cells. No production account removal is performed as a deployment test.
+Apply migration **003-submission-limit.sql** as the migration owner (`npm run db:migrate`) before starting this API. The database is schema version **6**. CSV exports require administrator access, include a UTF-8 BOM, quote multiline/Unicode text, and neutralize spreadsheet formulas in user-supplied cells. No production account removal is performed as a deployment test.
 
 
 ### Independent like scheduling and reset
@@ -337,3 +337,12 @@ The API binds user values as PostgreSQL parameters. Dynamic sort fields and tabl
 Text (including SQL-looking or HTML-looking feedback) is treated as literal data, rendered with React escaping and never inserted as HTML. Legitimate punctuation and SQL terminology are not banned as an injection defense. CSV exports neutralize formula-leading strings. Amplify’s `customHttp.yml` adds a same-origin Content Security Policy, anti-framing headers, nosniff, HSTS, referrer policy and disabled unused browser permissions. It does not override private API cache controls.
 
 References: [OWASP SQL injection prevention](https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html), [OWASP XSS prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html), and [Amplify custom headers](https://docs.aws.amazon.com/amplify/latest/userguide/custom-headers.html). Verification includes real PostgreSQL injection payloads, empty/forged feedback, admin-only exports, CSV safety, immutable/concurrent votes and isolated per-user resets. Production reset endpoints are never called as deployment tests.
+
+
+### Card authors and visible totals
+
+Idea cards show the submitted full name. For an older idea without a name, they show the email ID exactly as written before `@nepgroup.com`, including its periods. Search also matches submitted full names.
+
+In **Admin → Voting & Like schedule → Card totals**, use **Show vote totals on cards** and **Show like totals on cards**, then **Save voting settings**. Both default to enabled. Disabling either removes its total from the card while keeping the corresponding action and selected state. It also removes that metric’s sorting option. Disabling both removes the complete sorting dropdown, label and icons from the rendered page, and ideas are ordered newest first. This applies to Explore ideas and My ideas. Personal filters and search remain available; administrator tables and exports retain their totals. These controls affect card display, not access to aggregate data through the API or separately enabled awards and homepage summaries.
+
+Existing installations must apply **006-card-count-visibility.sql** using `npm run db:migrate` as the migration owner before starting this API. It adds two settings flags with default `1`, preserves all ideas and reactions, and brings the schema to **6**. Existing settings-table grants cover the new columns. The empty AWS schema export and SQLite importer use the same defaults.
